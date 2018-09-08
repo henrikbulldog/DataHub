@@ -2,69 +2,26 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 
 namespace DataHub.Repositories
 {
     public class LocalDBContext : DbContext
     {
-        public DbSet<SensorData> SensorData { get; set; }
+        public DbSet<TimeSeries> TimeSeries { get; set; }
 
-        public DbSet<Tag> Tags { get; set; }
+        public DbSet<TimeSeriesTag> TimeSeriesTags { get; set; }
 
         public DbSet<Models.FileInfo> Files { get; set; }
+
+        public DbSet<FunctionalAsset> FunctionalAssets { get; set; }
+
+        public DbSet<SerialAsset> SerialAssets { get; set; }
+
 
         public LocalDBContext(ILogger logger = null)
         {
             Logger = logger;
-            Database.EnsureDeleted();
-            Database.EnsureCreated();
-            SensorData.Add(new SensorData
-            {
-                Id = "1",
-                Source = "Hist",
-                TagId = "ABC123",
-                Timestamp = DateTime.Now,
-                Units = "Pa",
-                Value = "123.2345",
-                Tag = new Tag
-                {
-                    Id = "ABC123",
-                    Name = "Some tag"
-                }
-            });
-            SensorData.Add(new SensorData
-            {
-                Id = "2",
-                Source = "Hist",
-                TagId = "ABC234",
-                Timestamp = DateTime.Now,
-                Units = "Pa",
-                Value = "23.23456",
-                Tag = new Tag
-                {
-                    Id = "ABC234",
-                    Name = "Some other tag"
-                }
-            });
-            Files.Add(
-                new Models.FileInfo
-                {
-                    Entity = "SensorData",
-                    Format = "CSV",
-                    Filename = "ABC123.CSV",
-                    Id = "1",
-                    Source = "Hist"
-                });
-            Files.Add(
-                new Models.FileInfo
-                {
-                    Entity = "SensorData",
-                    Format = "CSV",
-                    Filename = "ABC124.CSV",
-                    Id = "2",
-                    Source = "Hist"
-                });
-            SaveChanges();
         }
 
         public ILogger Logger { get; set; }
@@ -96,5 +53,6 @@ namespace DataHub.Repositories
         {
             base.OnModelCreating(modelBuilder);
         }
+
     }
 }

@@ -42,7 +42,9 @@ namespace DataHub.Controllers
             where T : class
         {
             var repo = new EntityFrameworkRepository<T>(dbContext);
-            return repo.AsQueryable().OData().ApplyQueryOptionsWithoutSelectExpand(queryOptions);
+            return repo.AsQueryable()
+                .OData()
+                .ApplyQueryOptionsWithoutSelectExpand(queryOptions);
         }
     }
 }
