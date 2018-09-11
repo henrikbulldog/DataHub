@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore.Metadata;
+using System;
 using System.Collections.Generic;
 using System.Dynamic;
 using System.Linq;
@@ -13,7 +14,11 @@ namespace DataHub.Models
             entity.Name = type.Name;
             entity.Properties = new List<Property>();
             entity.Properties.AddRange(type.GetProperties()
-                .Select(p => new Property { Name = p.Name, Datatype = p.PropertyType.Name }));
+                .Select(p => new Property
+                {
+                    Name = p.Name,
+                    Datatype = p.PropertyType.Name
+                }));
             return entity;
         }
 

@@ -4,10 +4,10 @@ using System.Text;
 
 namespace DataHub.Entities
 {
-    public class Asset
+    public class Site
     {
         public string Id { get; set; }
         public string Name { get; set; }
-        public IEnumerable<Asset> Assets { get; set; }
+        public IEnumerable<FunctionalAsset> FunctionalAssets { get; set; }
     }
 }

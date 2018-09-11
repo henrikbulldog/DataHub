@@ -1,4 +1,5 @@
 ﻿using DataHub.Models;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,14 +11,14 @@ namespace DataHub.Repositories
     public class EntitiesRepository : IEntitiesRepository
     {
         private List<Entity> entities = new List<Entity>();
-
-        public EntitiesRepository()
+        
+        public EntitiesRepository(string nspace = "DataHub.Entities")
         {
-            string nspace = "DataHub.Entities";
-            var q = from t in Assembly.Load("DataHub.Entities, Version = 1.0.0.0, Culture = neutral, PublicKeyToken = null").GetTypes()
-                    where t.IsClass && t.Namespace == nspace
-                    select t;
-            entities.AddRange(q.Select(t => new Entity().FromType(t)));
+            var types = Assembly.Load($"{nspace}, Version = 1.0.0.0, Culture = neutral, PublicKeyToken = null")
+                    .GetTypes()
+                    .Where(t => t.IsClass && t.Namespace == nspace && !t.IsAbstract)
+                    .Select(t => new Entity().FromType(t));
+            entities.AddRange(types);
         }
 
         public IEnumerable<Entity> Find()

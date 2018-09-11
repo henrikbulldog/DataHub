@@ -1,27 +1,25 @@
 ﻿using DataHub.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using System;
+using System.Linq;
 using System.Collections.Generic;
+using System.Reflection;
+using DataHub.Models;
 
 namespace DataHub.Repositories
 {
     public class LocalDBContext : DbContext
     {
-        public DbSet<TimeSeries> TimeSeries { get; set; }
-
-        public DbSet<TimeSeriesTag> TimeSeriesTags { get; set; }
-
         public DbSet<Models.FileInfo> Files { get; set; }
 
-        public DbSet<FunctionalAsset> FunctionalAssets { get; set; }
+        private IEntitiesRepository entitiesRepository;
 
-        public DbSet<SerialAsset> SerialAssets { get; set; }
-
-
-        public LocalDBContext(ILogger logger = null)
+        public LocalDBContext(
+                IEntitiesRepository entitiesRepository,
+                ILogger logger = null)
         {
             Logger = logger;
+            this.entitiesRepository = entitiesRepository;
         }
 
         public ILogger Logger { get; set; }
@@ -41,6 +39,7 @@ namespace DataHub.Repositories
             {
                 optionsBuilder.UseSqlServer(@"Server=(localdb)\mssqllocaldb;Database=EFProviders.InMemory;Trusted_Connection=True;ConnectRetryCount=0");
             }
+
             //if (Logger != null)
             //{
             //  var lf = new LoggerFactory();
@@ -52,6 +51,11 @@ namespace DataHub.Repositories
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            foreach (var entity in entitiesRepository.Find())
+            {
+                modelBuilder.Entity(entity.ToType());
+            }
         }
 
     }
