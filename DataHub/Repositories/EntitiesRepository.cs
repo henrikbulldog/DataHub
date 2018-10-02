@@ -21,6 +21,11 @@ namespace DataHub.Repositories
             entities.AddRange(types);
         }
 
+        public IQueryable<Entity> AsQueryable()
+        {
+            return entities.AsQueryable();
+        }
+
         public IEnumerable<Entity> Find()
         {
             return entities;

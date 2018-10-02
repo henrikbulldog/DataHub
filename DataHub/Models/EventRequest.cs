@@ -5,11 +5,11 @@ using System.Threading.Tasks;
 
 namespace DataHub.Models
 {
-    public class MessageRequest
+    public class EventRequest
     {
         public string Source { get; set; }
-        public string Entity { get; set; }
-        public string Time { get; set; }
+        public string Type { get; set; }
+        public DateTime Time { get; set; }
         public string Payload { get; set; }
     }
 }

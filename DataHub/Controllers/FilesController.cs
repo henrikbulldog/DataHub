@@ -25,10 +25,25 @@ namespace DataHub.Controllers
         }
 
         [HttpGet()]
-        public virtual IActionResult Get(ODataQueryOptions queryOptions)
+        public virtual IActionResult Get(
+            [FromQuery(Name = "$top")] string top,
+            [FromQuery(Name = "$skip")] string skip,
+            [FromQuery(Name = "$select")] string select,
+            [FromQuery(Name = "$orderby")] string orderby,
+            [FromQuery(Name = "$expand")] string expand,
+            [FromQuery(Name = "$filter")] string filter)
         {
+            ODataQueryOptions oDataQueryOptions = new ODataQueryOptions
+            {
+                Top = top,
+                Skip = skip,
+                Select = select,
+                OrderBy = orderby,
+                Expand = expand,
+                Filters = new List<string> { filter }
+            };
             var files = filesRepository.AsQueryable()
-                .OData().ApplyQueryOptionsWithoutSelectExpand(queryOptions);
+                .OData().ApplyQueryOptionsWithoutSelectExpand(oDataQueryOptions);
             foreach(var file in files)
             {
                 file.Uri = this.BuildLink($"files/{file.Id}");

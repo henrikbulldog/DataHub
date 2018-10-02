@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace DataHub.Models
 {
-    public class MessageInfo : MessageRequest
+    public class EventInfo : EventRequest
     {
         public string  Id { get; set; }
         public string Uri { get; set; }

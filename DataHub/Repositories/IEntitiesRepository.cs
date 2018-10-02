@@ -9,5 +9,12 @@ namespace DataHub.Repositories
 {
     public interface IEntitiesRepository : IGetById<Entity>, IGetByIdAsync<Entity>, IFind<Entity>, IFindAsync<Entity> 
     {
+        //
+        // Summary:
+        //     Gets a queryable collection of entities
+        //
+        // Returns:
+        //     Queryable collection of entities
+        IQueryable<Entity> AsQueryable();
     }
 }

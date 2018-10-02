@@ -12,6 +12,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using RepositoryFramework.EntityFramework;
 using RepositoryFramework.Interfaces;
+using Swashbuckle.AspNetCore.Swagger;
 
 namespace DataHub
 {
@@ -48,6 +49,10 @@ namespace DataHub
                 typeof(IQueryableRepository<Models.FileInfo>),
                 sp => new EntityFrameworkRepository<Models.FileInfo>(sp.GetService<DbContext>()));
 
+            services.AddScoped(
+                typeof(IQueryableRepository<Models.EventInfo>),
+                sp => new EntityFrameworkRepository<Models.EventInfo>(sp.GetService<DbContext>()));
+
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
 
             services.AddMvc().AddJsonOptions(options =>
@@ -55,6 +60,11 @@ namespace DataHub
                 options.SerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
                 options.SerializerSettings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
                 options.SerializerSettings.NullValueHandling = NullValueHandling.Ignore;
+            });
+
+            services.AddSwaggerGen(c =>
+            {
+                c.SwaggerDoc("v1", new Info { Title = "My API", Version = "v1" });
             });
         }
 
@@ -67,6 +77,11 @@ namespace DataHub
             }
 
             app.UseMvc();
+            app.UseSwagger();
+            app.UseSwaggerUI(c =>
+            {
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
+            });
         }
         private void Seed(LocalDBContext dbContext)
         {
@@ -102,6 +117,24 @@ namespace DataHub
                     Units = "Pa"
                 }
             });
+
+            dbContext.Set<Models.EventInfo>()
+                .Add(new Models.EventInfo
+                {
+                    Id = "1",
+                    Source = "Source",
+                    Time = DateTime.Now,
+                    Type = "Type"
+                });
+            dbContext.Set<Models.EventInfo>()
+                .Add(new Models.EventInfo
+                {
+                    Id = "2",
+                    Source = "Source",
+                    Time = DateTime.Now,
+                    Type = "Type"
+                });
+
             dbContext.Set<Models.FileInfo>().Add(
                 new Models.FileInfo
                 {
