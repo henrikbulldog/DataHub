@@ -77,12 +77,11 @@ namespace DataHub.Repositories
 
         public void Upload(BlobInfo entity, Stream stream)
         {
-            throw new NotImplementedException();
         }
 
-        public Task UploadAsync(BlobInfo entity, Stream stream)
+        public async Task UploadAsync(BlobInfo entity, Stream stream)
         {
-            throw new NotImplementedException();
+            await Task.Run(() => { });
         }
     }
 }

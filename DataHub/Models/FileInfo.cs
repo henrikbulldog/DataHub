@@ -12,6 +12,6 @@ namespace DataHub.Models
         public string Entity { get; set; }
         public string Filename { get; set; }
         public string Format { get; set; }
-        public string Uri { get; set; }
+        public string DownloadUri { get; set; }
     }
 }

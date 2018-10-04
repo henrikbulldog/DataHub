@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using DataHub.Entities;
 using DataHub.Repositories;
 using Microsoft.AspNetCore.Builder;
@@ -37,6 +39,8 @@ namespace DataHub
                 sp =>
                 {
                     var context = new LocalDBContext(sp.GetService<IEntitiesRepository>());
+                    //context.Database.EnsureDeleted();
+                    context.Database.EnsureCreated();
                     Seed(context);
                     return context;
                 });
@@ -64,7 +68,10 @@ namespace DataHub
 
             services.AddSwaggerGen(c =>
             {
-                c.SwaggerDoc("v1", new Info { Title = "My API", Version = "v1" });
+                c.SwaggerDoc("v1", new Info { Title = "Data Hub", Version = "v1" });
+                var filePath = Path.Combine(System.AppContext.BaseDirectory, "DataHub.xml");
+                c.IncludeXmlComments(filePath);
+                c.OperationFilter<FileOperationFilter>();
             });
         }
 
@@ -83,84 +90,86 @@ namespace DataHub
                 c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
             });
         }
+
         private void Seed(LocalDBContext dbContext)
         {
-            dbContext.Database.EnsureDeleted();
-            dbContext.Database.EnsureCreated();
-            var ts1 = dbContext.Set<TimeSeries>().Add(new TimeSeries
+            if (dbContext.Set<TimeSeries>().Count() == 0)
             {
-                Id = "1",
-                Source = "Hist",
-                TimeSeriesTagId = "1",
-                Timestamp = DateTime.Now,
-                Value = "123.2345",
-                Tag = new TimeSeriesTag
+                var ts1 = dbContext.Set<TimeSeries>().Add(new TimeSeries
                 {
                     Id = "1",
-                    OEMTagName = "ABC123",
-                    Name = "Some tag",
-                    Units = "Pa"
-                }
-            });
-            var ts2 = dbContext.Set<TimeSeries>().Add(new TimeSeries
-            {
-                Id = "2",
-                Source = "Hist",
-                TimeSeriesTagId = "2",
-                Timestamp = DateTime.Now,
-                Value = "23.23456",
-                Tag = new TimeSeriesTag
-                {
-                    Id = "2",
-                    OEMTagName = "ABC234",
-                    Name = "Some other tag",
-                    Units = "Pa"
-                }
-            });
-
-            dbContext.Set<Models.EventInfo>()
-                .Add(new Models.EventInfo
-                {
-                    Id = "1",
-                    Source = "Source",
-                    Time = DateTime.Now,
-                    Type = "Type"
-                });
-            dbContext.Set<Models.EventInfo>()
-                .Add(new Models.EventInfo
-                {
-                    Id = "2",
-                    Source = "Source",
-                    Time = DateTime.Now,
-                    Type = "Type"
-                });
-
-            dbContext.Set<Models.FileInfo>().Add(
-                new Models.FileInfo
-                {
-                    Entity = "SensorData",
-                    Format = "CSV",
-                    Filename = "ABC123.CSV",
-                    Id = "1",
-                    Source = "Hist"
-                });
-            dbContext.Set<Models.FileInfo>().Add(
-                new Models.FileInfo
-                {
-                    Entity = "SensorData",
-                    Format = "CSV",
-                    Filename = "ABC124.CSV",
-                    Id = "2",
-                    Source = "Hist"
-                });
-            dbContext.Set<ReferenceAsset>().Add(
-                new ReferenceAsset
-                {
-                    Id = "1",
-                    Name = "Top drive",
-                    SFITag = "313-M01",
-                    SubAssets = new List<ReferenceAsset>
+                    Source = "Hist",
+                    TimeSeriesTagId = "1",
+                    Timestamp = DateTime.Now,
+                    Value = "123.2345",
+                    Tag = new TimeSeriesTag
                     {
+                        Id = "1",
+                        OEMTagName = "ABC123",
+                        Name = "Some tag",
+                        Units = "Pa"
+                    }
+                });
+                var ts2 = dbContext.Set<TimeSeries>().Add(new TimeSeries
+                {
+                    Id = "2",
+                    Source = "Hist",
+                    TimeSeriesTagId = "2",
+                    Timestamp = DateTime.Now,
+                    Value = "23.23456",
+                    Tag = new TimeSeriesTag
+                    {
+                        Id = "2",
+                        OEMTagName = "ABC234",
+                        Name = "Some other tag",
+                        Units = "Pa"
+                    }
+                });
+
+                dbContext.Set<Models.EventInfo>()
+                    .Add(new Models.EventInfo
+                    {
+                        Id = "1",
+                        Source = "Source",
+                        Time = DateTime.Now,
+                        Type = "Type"
+                    });
+                dbContext.Set<Models.EventInfo>()
+                    .Add(new Models.EventInfo
+                    {
+                        Id = "2",
+                        Source = "Source",
+                        Time = DateTime.Now,
+                        Type = "Type"
+                    });
+
+                dbContext.Set<Models.FileInfo>().Add(
+                    new Models.FileInfo
+                    {
+                        Entity = "SensorData",
+                        Format = "CSV",
+                        Filename = "ABC123.CSV",
+                        Id = "1",
+                        Source = "Hist"
+                    });
+                dbContext.Set<Models.FileInfo>().Add(
+                    new Models.FileInfo
+                    {
+                        Entity = "SensorData",
+                        Format = "CSV",
+                        Filename = "ABC124.CSV",
+                        Id = "2",
+                        Source = "Hist"
+                    });
+
+                dbContext.Set<ReferenceAsset>().Add(
+                    new ReferenceAsset
+                    {
+                        Id = "1",
+                        Name = "Top drive",
+                        SFITag = "313-M01",
+                        SubAssets = new List<ReferenceAsset>
+                        {
                         new ReferenceAsset
                         {
                             Id = "2",
@@ -173,15 +182,16 @@ namespace DataHub
                             Name = "Gear",
                             SFITag = "313-M01-02"
                         }
-                    }
-                });
-            dbContext.Set<Site>().Add(
-                new Site
-                {
-                    Id = "1",
-                    Name = "Site 1",
-                    FunctionalAssets = new List<FunctionalAsset>
+                        }
+                    });
+
+                dbContext.Set<Site>().Add(
+                    new Site
                     {
+                        Id = "1",
+                        Name = "Site 1",
+                        FunctionalAssets = new List<FunctionalAsset>
+                        {
                         new FunctionalAsset
                         {
                             Id = "1",
@@ -234,8 +244,10 @@ namespace DataHub
                                 }
 }
                         }
-                    }
-                });
+                        }
+                    });
+            }
+
             dbContext.SaveChanges();
         }
     }

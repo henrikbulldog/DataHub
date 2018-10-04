@@ -10,7 +10,7 @@ using RepositoryFramework.Interfaces;
 
 namespace DataHub.Controllers
 {
-    [Route("[controller]")]
+    [Route("events")]
     public class EventsController : Controller
     {
         private IQueryableRepository<Models.EventInfo> eventsRepository;
@@ -49,7 +49,7 @@ namespace DataHub.Controllers
                 Select = select,
                 OrderBy = orderby,
                 Expand = expand,
-                Filters = new List<string> { filter }
+                Filters = string.IsNullOrEmpty(filter) ? null : new List<string> { filter } 
             };
             var events = eventsRepository
                 .AsQueryable()
@@ -77,7 +77,7 @@ namespace DataHub.Controllers
                 Uri = this.BuildLink($"/Events/{id}")
             };
             await eventsRepository.CreateAsync(EventInfo);
-            Request.HttpContext.Response.Headers.Add("Location", this.BuildLink($"/Events/{id}"));
+            Request.HttpContext.Response.Headers.Add("Location", this.BuildLink($"/events/{id}"));
             return Ok(EventInfo);
         }
     }
