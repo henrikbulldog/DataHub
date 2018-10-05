@@ -10,6 +10,6 @@ namespace DataHub.Models
         public string Source { get; set; }
         public string Type { get; set; }
         public DateTime Time { get; set; }
-        public string Payload { get; set; }
+        public object Payload { get; set; }
     }
 }

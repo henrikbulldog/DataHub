@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using DataHub.Entities;
@@ -39,7 +40,7 @@ namespace DataHub
                 sp =>
                 {
                     var context = new LocalDBContext(sp.GetService<IEntitiesRepository>());
-                    //context.Database.EnsureDeleted();
+                    context.Database.EnsureDeleted();
                     context.Database.EnsureCreated();
                     Seed(context);
                     return context;
@@ -95,36 +96,33 @@ namespace DataHub
         {
             if (dbContext.Set<TimeSeries>().Count() == 0)
             {
-                var ts1 = dbContext.Set<TimeSeries>().Add(new TimeSeries
+                var tag1 = new TimeSeriesTag
                 {
-                    Id = "1",
-                    Source = "Hist",
-                    TimeSeriesTagId = "1",
-                    Timestamp = DateTime.Now,
-                    Value = "123.2345",
-                    Tag = new TimeSeriesTag
-                    {
-                        Id = "1",
-                        OEMTagName = "ABC123",
-                        Name = "Some tag",
-                        Units = "Pa"
-                    }
-                });
-                var ts2 = dbContext.Set<TimeSeries>().Add(new TimeSeries
+                    OEMTagName = "ABC123",
+                    Name = "Some tag",
+                    Units = "Pa"
+                };
+                var tag2 = new TimeSeriesTag
                 {
-                    Id = "2",
-                    Source = "Hist",
-                    TimeSeriesTagId = "2",
-                    Timestamp = DateTime.Now,
-                    Value = "23.23456",
-                    Tag = new TimeSeriesTag
+                    OEMTagName = "ABC234",
+                    Name = "Some other tag",
+                    Units = "Pa"
+                };
+                dbContext.Set<TimeSeriesTag>().Add(tag1);
+                dbContext.Set<TimeSeriesTag>().Add(tag2);
+
+                var r = new Random();
+                for (int i = 1; i <= 1000; i++)
+                {
+                    var ts1 = dbContext.Set<TimeSeries>().Add(new TimeSeries
                     {
-                        Id = "2",
-                        OEMTagName = "ABC234",
-                        Name = "Some other tag",
-                        Units = "Pa"
-                    }
-                });
+                        Source = "Historian",
+                        TimeSeriesTagId = i % 2 == 0 ? 1 : 2,
+                        Timestamp = DateTime.Now,
+                        Value = r.NextDouble().ToString(CultureInfo.InvariantCulture),
+                        Tag = i % 2 == 0 ? tag1 : tag2
+                    });
+                }
 
                 dbContext.Set<Models.EventInfo>()
                     .Add(new Models.EventInfo
@@ -210,7 +208,7 @@ namespace DataHub
                                     Location = "Location 2",
                                     Name = "Top drive driver 123",
                                     TagNumber = "313-M01-01-123",
-                                    TimeSeriesTags = new List<TimeSeriesTag> { ts1.Entity.Tag },
+                                    TimeSeriesTags = new List<TimeSeriesTag> { tag1 },
                                     SerialAssets = new List<SerialAsset>
                                     {
                                         new SerialAsset
@@ -230,7 +228,7 @@ namespace DataHub
                                     Location = "Location 3",
                                     Name = "Top drive gear 123",
                                     TagNumber = "313-M01-02-123",
-                                    TimeSeriesTags = new List<TimeSeriesTag> { ts2.Entity.Tag },
+                                    TimeSeriesTags = new List<TimeSeriesTag> { tag2 },
                                     SerialAssets = new List<SerialAsset>
                                     {
                                         new SerialAsset

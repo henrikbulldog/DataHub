@@ -67,10 +67,7 @@ namespace DataHub.Controllers
             return Ok(new EntityListResponse
             {
                 SchemaVersion = Assembly.GetAssembly(typeof(DataHub.Entities.Site)).GetName().Version.ToString(),
-                Data = new PagedListData<Entity>
-                {
-                    Items = entities
-                }
+                Data = new PagedListData<Entity>(entities, top, skip, () => entitiesRepository.AsQueryable().LongCount())
             });
         }
 
@@ -139,10 +136,13 @@ namespace DataHub.Controllers
 
             return Ok(new DataListResponse
             {
-                Data = new PagedListData<object>
+                Data = new PagedListData<object>(items, top, skip, () =>
                 {
-                    Items = items
-                }
+                    return GetType()
+                        .GetMethod("Count")
+                        .MakeGenericMethod(entity.ToType())
+                        .Invoke(this, null) as long?;
+                })
             });
         }
 
@@ -153,6 +153,14 @@ namespace DataHub.Controllers
             return repo.AsQueryable()
                 .OData()
                 .ApplyQueryOptionsWithoutSelectExpand(queryOptions);
+        }
+
+        public long? Count<T>()
+            where T : class
+        {
+            var repo = new EntityFrameworkRepository<T>(dbContext);
+            return repo.AsQueryable()
+                .LongCount();
         }
 
         /// <summary>

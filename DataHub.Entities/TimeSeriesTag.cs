@@ -7,7 +7,7 @@ namespace DataHub.Entities
 {
     public class TimeSeriesTag
     {
-        public string Id { get; set; }
+        public long Id { get; set; }
         /// <summary>
         /// Original equipment manufacturer tag name
         /// </summary>

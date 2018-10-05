@@ -64,6 +64,9 @@ namespace DataHub.Repositories
 
         public BlobInfo GetById(object id)
         {
+            if (id.ToString() != "1")
+                return null;
+
             return new BlobInfo
             {
                 Id = id.ToString()
