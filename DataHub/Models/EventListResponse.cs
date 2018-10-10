@@ -5,8 +5,8 @@ using System.Threading.Tasks;
 
 namespace DataHub.Models
 {
-    public class EventInfo : EventRequest
+    public class EventListResponse
     {
-        public string  Id { get; set; }
+        public PagedListData<EventInfo> Data { get; set; }
     }
 }

@@ -16,6 +16,7 @@
   <ItemGroup>
     <PackageReference Include="Community.OData.Linq.AspNetCore" Version="1.4.1" />
     <PackageReference Include="Microsoft.AspNetCore.All" Version="2.1.3" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.0.4" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="2.1.2" />
     <PackageReference Include="RepositoryFramework.EntityFramework" Version="2.0.7" />
     <PackageReference Include="RepositoryFramework.Interfaces" Version="2.0.7" />

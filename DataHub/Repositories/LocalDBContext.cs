@@ -11,6 +11,7 @@ namespace DataHub.Repositories
     public class LocalDBContext : DbContext
     {
         public DbSet<Models.EventInfo> Events { get; set; }
+
         public DbSet<Models.FileInfo> Files { get; set; }
 
         private IEntitiesRepository entitiesRepository;

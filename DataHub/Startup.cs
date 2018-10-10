@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using DataHub.Entities;
+using DataHub.Hubs;
 using DataHub.Repositories;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -21,6 +22,8 @@ namespace DataHub
 {
     public class Startup
     {
+        public const string EVENT_HUB_PATH = "/event-hub";
+
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
@@ -40,7 +43,7 @@ namespace DataHub
                 sp =>
                 {
                     var context = new LocalDBContext(sp.GetService<IEntitiesRepository>());
-                    context.Database.EnsureDeleted();
+                    //context.Database.EnsureDeleted();
                     context.Database.EnsureCreated();
                     Seed(context);
                     return context;
@@ -74,6 +77,16 @@ namespace DataHub
                 c.IncludeXmlComments(filePath);
                 c.OperationFilter<FileOperationFilter>();
             });
+
+            services.AddCors(o => o.AddPolicy("CorsPolicy", builder =>
+            {
+                builder.AllowAnyMethod()
+                    .AllowAnyHeader()
+                    .AllowCredentials()
+                    .AllowAnyOrigin();
+            }));
+
+            services.AddSignalR();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -84,11 +97,18 @@ namespace DataHub
                 app.UseDeveloperExceptionPage();
             }
 
+            app.UseCors("CorsPolicy");
+
+            app.UseSignalR(routes =>
+            {
+                routes.MapHub<EventHub>(EVENT_HUB_PATH);
+            });
+
             app.UseMvc();
             app.UseSwagger();
             app.UseSwaggerUI(c =>
             {
-                c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "Data Hub");
             });
         }
 
@@ -130,7 +150,7 @@ namespace DataHub
                         Id = "1",
                         Source = "Source",
                         Time = DateTime.Now,
-                        Type = "Type"
+                        Name = "Type"
                     });
                 dbContext.Set<Models.EventInfo>()
                     .Add(new Models.EventInfo
@@ -138,7 +158,7 @@ namespace DataHub
                         Id = "2",
                         Source = "Source",
                         Time = DateTime.Now,
-                        Type = "Type"
+                        Name = "Type"
                     });
 
                 dbContext.Set<Models.FileInfo>().Add(

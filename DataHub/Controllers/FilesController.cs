@@ -124,7 +124,7 @@ namespace DataHub.Controllers
             [FromForm]string entity,
             [FromForm]string filename,
             [FromForm]string format,
-            [FromForm]IFormFile fileData)
+            [FromForm(Name = FileOperationFilter.FILE_PAYLOAD_PARM)] IFormFile fileData)
         {
             if (fileData == null)
             {

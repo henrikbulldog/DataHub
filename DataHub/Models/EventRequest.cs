@@ -7,9 +7,28 @@ namespace DataHub.Models
 {
     public class EventRequest
     {
+        /// <summary>
+        /// Originating data source
+        /// </summary>
         public string Source { get; set; }
-        public string Type { get; set; }
+
+        /// <summary>
+        /// Name of event
+        /// </summary>
+        public string Name { get; set; }
+        /// <summary>
+        /// Severity of event
+        /// </summary>
+        public string Severity { get; set; }
+
+        /// <summary>
+        /// Event creation time
+        /// </summary>
         public DateTime Time { get; set; }
-        public object Payload { get; set; }
+
+        /// <summary>
+        /// Event payload
+        /// </summary>
+        public string Payload { get; set; }
     }
 }

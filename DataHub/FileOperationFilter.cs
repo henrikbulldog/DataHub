@@ -9,6 +9,7 @@ namespace DataHub
 {
     public class FileOperationFilter : IOperationFilter
     {
+        public const string FILE_PAYLOAD_PARM = "fileData";
         public void Apply(Operation operation, OperationFilterContext context)
         {
             var descr = context.ApiDescription.ParameterDescriptions;
@@ -24,7 +25,7 @@ namespace DataHub
 
                 operation.Parameters.Add(new NonBodyParameter
                 {
-                    Name = "fileData", // must match parameter name from controller method
+                    Name = FILE_PAYLOAD_PARM, // must match parameter name from controller method
                     In = "formData",
                     Description = "Upload file",
                     Required = true,
