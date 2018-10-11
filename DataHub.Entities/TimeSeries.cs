@@ -7,11 +7,12 @@ namespace DataHub.Entities
 {
     public class TimeSeries
     {
-        public long Id { get; set; }
+        public string Id { get; set; }
+        public string Name { get; set; }
         public string Source { get; set; }
-        public long TimeSeriesTagId { get; set; }
-        public DateTime Timestamp { get; set; }
-        public string Value { get; set; }
-        public TimeSeriesTag Tag { get; set; }
+        public string Description { get; set; }
+        public string Units { get; set; }
+        public DateTime Created { get; set; }
+        public DateTime Updated { get; set; }
     }
 }

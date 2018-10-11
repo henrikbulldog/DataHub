@@ -38,13 +38,20 @@ namespace DataHub.Controllers
         [ProducesResponseType(404)]
         public virtual async Task<IActionResult> Get([FromRoute]string id)
         {
-            var e = await eventsRepository.GetByIdAsync(id);
-            if (e == null)
+            try
             {
-                return NotFound($"No data found for Event id {id}");
-            }
+                var e = await eventsRepository.GetByIdAsync(id);
+                if (e == null)
+                {
+                    return NotFound($"No data found for Event id {id}");
+                }
 
-            return Ok(e);
+                return Ok(e);
+            }
+            catch (Exception e)
+            {
+                return this.InternalServerError(e.FlattenMessages());
+            }
         }
 
         /// <summary>
@@ -67,27 +74,34 @@ namespace DataHub.Controllers
             [FromQuery(Name = "$expand")] string expand,
             [FromQuery(Name = "$filter")] string filter)
         {
-            ODataQueryOptions oDataQueryOptions = new ODataQueryOptions
+            try
             {
-                Top = top,
-                Skip = skip,
-                Select = select,
-                OrderBy = orderby,
-                Expand = expand,
-                Filters = string.IsNullOrEmpty(filter) ? null : new List<string> { filter } 
-            };
-            var events = eventsRepository
-                .AsQueryable()
-                .OData()
-                .ApplyQueryOptionsWithoutSelectExpand(oDataQueryOptions);
-            return Ok(new Models.EventListResponse
+                ODataQueryOptions oDataQueryOptions = new ODataQueryOptions
+                {
+                    Top = top,
+                    Skip = skip,
+                    Select = select,
+                    OrderBy = orderby,
+                    Expand = expand,
+                    Filters = string.IsNullOrEmpty(filter) ? null : new List<string> { filter }
+                };
+                var events = eventsRepository
+                    .AsQueryable()
+                    .OData()
+                    .ApplyQueryOptionsWithoutSelectExpand(oDataQueryOptions);
+                return Ok(new Models.EventListResponse
+                {
+                    Data = new Models.PagedListData<Models.EventInfo>(
+                        events,
+                        top,
+                        skip,
+                        () => eventsRepository.AsQueryable().LongCount())
+                });
+            }
+            catch (Exception e)
             {
-                Data = new Models.PagedListData<Models.EventInfo>(
-                    events, 
-                    top, 
-                    skip, 
-                    () => eventsRepository.AsQueryable().LongCount())
-            });
+                return this.InternalServerError(e.FlattenMessages());
+            }
         }
 
         /// <summary>
@@ -100,23 +114,30 @@ namespace DataHub.Controllers
         [ProducesResponseType(400)]
         public virtual async Task<IActionResult> Post([FromBody]Models.EventRequest eventRequest)
         {
-            if (eventRequest == null)
+            try
             {
-                return BadRequest("No Event data");
-            }
+                if (eventRequest == null)
+                {
+                    return BadRequest("No Event data");
+                }
 
-            var id = Guid.NewGuid().ToString();
-            var eventInfo = new Models.EventInfo
+                var id = Guid.NewGuid().ToString();
+                var eventInfo = new Models.EventInfo
+                {
+                    Id = id,
+                    Source = eventRequest.Source,
+                    Name = eventRequest.Name,
+                    Time = eventRequest.Time,
+                    Payload = eventRequest.Payload
+                };
+                await eventsRepository.CreateAsync(eventInfo);
+                await PublishEventAsync(eventRequest.Name, JsonConvert.SerializeObject(eventInfo));
+                return Created(this.BuildLink($"/events/{id}"), eventInfo);
+            }
+            catch (Exception e)
             {
-                Id = id,
-                Source = eventRequest.Source,
-                Name = eventRequest.Name,
-                Time = eventRequest.Time,
-                Payload = eventRequest.Payload
-            };
-            await eventsRepository.CreateAsync(eventInfo);
-            await PublishEventAsync(eventRequest.Name, JsonConvert.SerializeObject(eventInfo));
-            return Created(this.BuildLink($"/events/{id}"), eventInfo);
+                return this.InternalServerError(e.FlattenMessages());
+            }
         }
 
         /// <summary>
@@ -127,12 +148,19 @@ namespace DataHub.Controllers
         [ProducesResponseType(typeof(Models.EventSubscriptionInfo), 200)]
         public virtual IActionResult GetEventSubscriptionInfo()
         {
-            return Ok(new Models.EventSubscriptionInfo
+            try
             {
-                ConnectionUri = this.BuildLink(Startup.EVENT_HUB_PATH),
-                Protocol = "SignalR",
-                ClientDocumentationUri = "https://docs.microsoft.com/en-us/aspnet/core/signalr/clients?view=aspnetcore-2.1"
-            });
+                return Ok(new Models.EventSubscriptionInfo
+                {
+                    ConnectionUri = this.BuildLink(Startup.EVENT_HUB_PATH),
+                    Protocol = "SignalR",
+                    ClientDocumentationUri = "https://docs.microsoft.com/en-us/aspnet/core/signalr/clients?view=aspnetcore-2.1"
+                });
+            }
+            catch (Exception e)
+            {
+                return this.InternalServerError(e.FlattenMessages());
+            }
         }
 
         private async Task PublishEventAsync(string messageType, string message)

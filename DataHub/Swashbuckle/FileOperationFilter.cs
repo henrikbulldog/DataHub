@@ -1,12 +1,13 @@
 ﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Swashbuckle.AspNetCore.Swagger;
 using Swashbuckle.AspNetCore.SwaggerGen;
-using System;
 using System.Linq;
 
 namespace DataHub
 {
+    /// <summary>
+    /// Handle file input for Swagger documentation
+    /// </summary>
     public class FileOperationFilter : IOperationFilter
     {
         public const string FILE_PAYLOAD_PARM = "fileData";
@@ -34,6 +35,14 @@ namespace DataHub
 
                 operation.Consumes.Add("multipart/form-data");
             }
+            operation.Parameters.Add(new NonBodyParameter
+            {
+                Name = "api-key",
+                In = "header",
+                Type = "string",
+                Format = "password",
+                Required = true
+            });
         }
     }
 }

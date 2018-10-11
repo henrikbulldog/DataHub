@@ -8,7 +8,7 @@ using DataHub.Models;
 
 namespace DataHub.Repositories
 {
-    public class LocalDBContext : DbContext
+    public class EntitiesDBContext : DbContext
     {
         public DbSet<Models.EventInfo> Events { get; set; }
 
@@ -16,10 +16,14 @@ namespace DataHub.Repositories
 
         private IEntitiesRepository entitiesRepository;
 
-        public LocalDBContext(
-                IEntitiesRepository entitiesRepository,
-                ILogger logger = null)
+        private string connectionString;
+
+        public EntitiesDBContext(
+            string connectionString,
+            IEntitiesRepository entitiesRepository,
+            ILogger logger = null)
         {
+            this.connectionString = connectionString;
             Logger = logger;
             this.entitiesRepository = entitiesRepository;
         }
@@ -39,7 +43,7 @@ namespace DataHub.Repositories
         {
             if (!optionsBuilder.IsConfigured)
             {
-                optionsBuilder.UseSqlServer(@"Server=(localdb)\mssqllocaldb;Database=EFProviders.InMemory;Trusted_Connection=True;ConnectRetryCount=0");
+                optionsBuilder.UseSqlServer(connectionString);
             }
 
             //if (Logger != null)

@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using DataHub.Entities;
 using DataHub.Hubs;
+using DataHub.Middleware;
 using DataHub.Repositories;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -12,11 +13,15 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Blob;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
+using RepositoryFramework.Azure.Blob;
 using RepositoryFramework.EntityFramework;
 using RepositoryFramework.Interfaces;
 using Swashbuckle.AspNetCore.Swagger;
+using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace DataHub
 {
@@ -39,27 +44,41 @@ namespace DataHub
                 sp => new EntitiesRepository());
 
             services.AddScoped(
-                typeof(DbContext),
+                typeof(EntitiesDBContext),
                 sp =>
                 {
-                    var context = new LocalDBContext(sp.GetService<IEntitiesRepository>());
-                    //context.Database.EnsureDeleted();
+                    var context = new EntitiesDBContext(
+#if RELEASE
+                        Environment.GetEnvironmentVariable("Azure.Sql.Connection"),
+#else
+                        @"Server=(localdb)\mssqllocaldb;Database=EFProviders.InMemory;Trusted_Connection=True;ConnectRetryCount=0",
+#endif
+                        sp.GetService<IEntitiesRepository>());
                     context.Database.EnsureCreated();
                     Seed(context);
                     return context;
                 });
 
             services.AddScoped(
-                typeof(IBlobRepository),
-                sp => new BlobRepository());
-
-            services.AddScoped(
                 typeof(IQueryableRepository<Models.FileInfo>),
-                sp => new EntityFrameworkRepository<Models.FileInfo>(sp.GetService<DbContext>()));
+                sp => new EntityFrameworkRepository<Models.FileInfo>(sp.GetService<EntitiesDBContext>()));
 
             services.AddScoped(
                 typeof(IQueryableRepository<Models.EventInfo>),
-                sp => new EntityFrameworkRepository<Models.EventInfo>(sp.GetService<DbContext>()));
+                sp => new EntityFrameworkRepository<Models.EventInfo>(sp.GetService<EntitiesDBContext>()));
+
+#if RELEASE
+            services.AddScoped(
+                typeof(IBlobRepository),
+                sp => new AzureBlobRepository(CloudStorageAccount
+                    .Parse(Environment.GetEnvironmentVariable("Azure.Storage.Connection"))
+                    .CreateCloudBlobClient()
+                    .GetContainerReference(Configuration["Azure.Blob:Container"])));
+#else
+            services.AddScoped(
+                typeof(IBlobRepository),
+                sp => new BlobRepository());
+#endif
 
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
 
@@ -76,6 +95,7 @@ namespace DataHub
                 var filePath = Path.Combine(System.AppContext.BaseDirectory, "DataHub.xml");
                 c.IncludeXmlComments(filePath);
                 c.OperationFilter<FileOperationFilter>();
+                c.CustomSchemaIds(type => type.FriendlyId().Replace("[", "Of").Replace("]", ""));
             });
 
             services.AddCors(o => o.AddPolicy("CorsPolicy", builder =>
@@ -92,6 +112,13 @@ namespace DataHub
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
+            using (var serviceScope = app.ApplicationServices.GetService<IServiceScopeFactory>().CreateScope())
+            {
+                var context = serviceScope.ServiceProvider.GetRequiredService<EntitiesDBContext>();
+                context.Database.EnsureCreated();
+                Seed(context);
+            }
+
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
@@ -104,6 +131,10 @@ namespace DataHub
                 routes.MapHub<EventHub>(EVENT_HUB_PATH);
             });
 
+#if RELEASE
+            app.ApplyUserKeyValidation();
+#endif
+
             app.UseMvc();
             app.UseSwagger();
             app.UseSwaggerUI(c =>
@@ -112,35 +143,34 @@ namespace DataHub
             });
         }
 
-        private void Seed(LocalDBContext dbContext)
+        private void Seed(EntitiesDBContext dbContext)
         {
-            if (dbContext.Set<TimeSeries>().Count() == 0)
+            if (dbContext.Set<DataPoint>().Count() == 0)
             {
-                var tag1 = new TimeSeriesTag
+                var tag1 = new TimeSeries
                 {
-                    OEMTagName = "ABC123",
-                    Name = "Some tag",
+                    Name = "ABC123",
+                    Description = "Some tag",
                     Units = "Pa"
                 };
-                var tag2 = new TimeSeriesTag
+                var tag2 = new TimeSeries
                 {
-                    OEMTagName = "ABC234",
-                    Name = "Some other tag",
+                    Name = "ABC234",
+                    Description = "Some other tag",
                     Units = "Pa"
                 };
-                dbContext.Set<TimeSeriesTag>().Add(tag1);
-                dbContext.Set<TimeSeriesTag>().Add(tag2);
+                dbContext.Set<TimeSeries>().Add(tag1);
+                dbContext.Set<TimeSeries>().Add(tag2);
 
                 var r = new Random();
                 for (int i = 1; i <= 1000; i++)
                 {
-                    var ts1 = dbContext.Set<TimeSeries>().Add(new TimeSeries
+                    var ts1 = dbContext.Set<DataPoint>().Add(new DataPoint
                     {
                         Source = "Historian",
-                        TimeSeriesTagId = i % 2 == 0 ? 1 : 2,
+                        TimeSeriesId = i % 2 == 0 ? 1 : 2,
                         Timestamp = DateTime.Now,
-                        Value = r.NextDouble().ToString(CultureInfo.InvariantCulture),
-                        Tag = i % 2 == 0 ? tag1 : tag2
+                        Value = r.NextDouble().ToString(CultureInfo.InvariantCulture)
                     });
                 }
 
@@ -180,90 +210,55 @@ namespace DataHub
                         Source = "Hist"
                     });
 
-                dbContext.Set<ReferenceAsset>().Add(
-                    new ReferenceAsset
+                dbContext.Set<Asset>().Add(
+                    new Asset
                     {
                         Id = "1",
-                        Name = "Top drive",
-                        SFITag = "313-M01",
-                        SubAssets = new List<ReferenceAsset>
+                        Tag = "Site 1",
+                        Description = "Site 1",
+                        Assets = new List<Asset>
                         {
-                        new ReferenceAsset
+                        new Asset
                         {
                             Id = "2",
-                            Name = "Drivers",
-                            SFITag = "313-M01-01"
-                        },
-                        new ReferenceAsset
-                        {
-                            Id = "3",
-                            Name = "Gear",
-                            SFITag = "313-M01-02"
-                        }
-                        }
-                    });
-
-                dbContext.Set<Site>().Add(
-                    new Site
-                    {
-                        Id = "1",
-                        Name = "Site 1",
-                        FunctionalAssets = new List<FunctionalAsset>
-                        {
-                        new FunctionalAsset
-                        {
-                            Id = "1",
-                            SiteId = "1",
-                            ReferenceAssetId = "1",
-                            Location = "Location 1",
-                            Name = "Top drive 123",
-                            TagNumber = "313-M01-01-123",
-                            SubAssets = new List<FunctionalAsset>
+                            ParentId = "1",
+                            Description = "Drilling equipment and systems",
+                            Tag = "3",
+                            Assets = new List<Asset>
                             {
-                                new FunctionalAsset
-                                {
-                                    Id = "2",
-                                    SiteId = "1",
-                                    ReferenceAssetId = "2",
-                                    Location = "Location 2",
-                                    Name = "Top drive driver 123",
-                                    TagNumber = "313-M01-01-123",
-                                    TimeSeriesTags = new List<TimeSeriesTag> { tag1 },
-                                    SerialAssets = new List<SerialAsset>
-                                    {
-                                        new SerialAsset
-                                        {
-                                            Id = "1",
-                                            Name = "Driver XZY 1234",
-                                            Producer = "Some producer",
-                                            SerialNumber = "1234568790"
-                                        }
-                                    }
-                                },
-                                 new FunctionalAsset
+                                new Asset
                                 {
                                     Id = "3",
-                                    SiteId = "1",
-                                    ReferenceAssetId = "3",
-                                    Location = "Location 3",
-                                    Name = "Top drive gear 123",
-                                    TagNumber = "313-M01-02-123",
-                                    TimeSeriesTags = new List<TimeSeriesTag> { tag2 },
-                                    SerialAssets = new List<SerialAsset>
+                                    ParentId = "2",
+                                    Description = "Mud supply",
+                                    Tag = "325",
+                                    Assets = new List<Asset>
                                     {
-                                        new SerialAsset
+                                        new Asset
                                         {
-                                            Id = "2",
-                                            Name = "Gear XZY 1234",
-                                            Producer = "Some producer",
-                                            SerialNumber = "1234568790"
+                                            Id = "4",
+                                            ParentId = "3",
+                                            Tag = "325-G1",
+                                            Description = "Mud pump no.1",
+                                            Manufacturer = "Some producer",
+                                            SerialNumber = "1234568790",
+                                            TimeSeries = new List<TimeSeries> { tag1 }
+                                        },
+                                         new Asset
+                                        {
+                                            Id = "5",
+                                            ParentId = "3",
+                                            Description = "Mud pump no.2",
+                                            Tag = "325-G2",
+                                            Manufacturer = "Some other producer",
+                                            SerialNumber = "0987654321",
+                                            TimeSeries = new List<TimeSeries> { tag2 },
                                         }
                                     }
                                 }
-}
+                            }
                         }
-                        }
-                    });
+                    }});
             }
 
             dbContext.SaveChanges();

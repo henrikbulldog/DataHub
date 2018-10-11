@@ -36,5 +36,12 @@ namespace DataHub.Controllers
             controller.Response.StatusCode = (int)HttpStatusCode.NotFound;
             await controller.Response.Body.WriteAsync(Encoding.UTF8.GetBytes(message), 0, message.Length);
         }
+
+        public static InternalServerErrorObjectResult InternalServerError(
+            this Controller controller,
+            object value)
+        {
+            return new InternalServerErrorObjectResult(value);
+        }
     }
 }

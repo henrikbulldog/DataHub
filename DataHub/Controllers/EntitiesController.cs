@@ -1,5 +1,4 @@
-﻿using System.IO;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -7,12 +6,11 @@ using Community.OData.Linq;
 using Community.OData.Linq.AspNetCore;
 using DataHub.Models;
 using DataHub.Repositories;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using RepositoryFramework.EntityFramework;
-using RepositoryFramework.Interfaces;
+using System;
 
 namespace DataHub.Controllers
 {
@@ -20,11 +18,11 @@ namespace DataHub.Controllers
     public class EntitiesController : Controller
     {
         private IEntitiesRepository entitiesRepository;
-        private DbContext dbContext;
+        private EntitiesDBContext dbContext;
 
         public EntitiesController(
             IEntitiesRepository entitiesRepository,
-            DbContext dbContext)
+            EntitiesDBContext dbContext)
         {
             this.entitiesRepository = entitiesRepository;
             this.dbContext = dbContext;
@@ -43,32 +41,39 @@ namespace DataHub.Controllers
         [HttpGet()]
         [ProducesResponseType(typeof(EntityListResponse), 200)]
         public virtual IActionResult GetEntities(
-            [FromQuery(Name ="$top")] string top,
+            [FromQuery(Name = "$top")] string top,
             [FromQuery(Name = "$skip")] string skip,
             [FromQuery(Name = "$select")] string select,
             [FromQuery(Name = "$orderby")] string orderby,
             [FromQuery(Name = "$expand")] string expand,
             [FromQuery(Name = "$filter")] string filter)
         {
-            ODataQueryOptions oDataQueryOptions = new ODataQueryOptions
+            try
             {
-                Top = top,
-                Skip = skip,
-                Select = select,
-                OrderBy = orderby,
-                Expand = expand,
-                Filters = string.IsNullOrEmpty(filter) ? null : new List<string> { filter }
-            };
+                ODataQueryOptions oDataQueryOptions = new ODataQueryOptions
+                {
+                    Top = top,
+                    Skip = skip,
+                    Select = select,
+                    OrderBy = orderby,
+                    Expand = expand,
+                    Filters = string.IsNullOrEmpty(filter) ? null : new List<string> { filter }
+                };
 
-            var entities = entitiesRepository
-                .AsQueryable()
-                .OData()
-                .ApplyQueryOptionsWithoutSelectExpand(oDataQueryOptions);
-            return Ok(new EntityListResponse
+                var entities = entitiesRepository
+                    .AsQueryable()
+                    .OData()
+                    .ApplyQueryOptionsWithoutSelectExpand(oDataQueryOptions);
+                return Ok(new EntityListResponse
+                {
+                    SchemaVersion = Assembly.GetAssembly(typeof(DataHub.Entities.Asset)).GetName().Version.ToString(),
+                    Data = new PagedListData<Entity>(entities, top, skip, () => entitiesRepository.AsQueryable().LongCount())
+                });
+            }
+            catch (Exception e)
             {
-                SchemaVersion = Assembly.GetAssembly(typeof(DataHub.Entities.Site)).GetName().Version.ToString(),
-                Data = new PagedListData<Entity>(entities, top, skip, () => entitiesRepository.AsQueryable().LongCount())
-            });
+                return this.InternalServerError(e.FlattenMessages());
+            }
         }
 
         /// <summary>
@@ -81,13 +86,20 @@ namespace DataHub.Controllers
         [ProducesResponseType(404)]
         public virtual async Task<IActionResult> GetEntityByName([FromRoute]string name)
         {
-            var entity = await entitiesRepository.GetByIdAsync(name);
-            if (entity == null)
+            try
             {
-                return NotFound($"No data found for entity {name}");
-            }
+                var entity = await entitiesRepository.GetByIdAsync(name);
+                if (entity == null)
+                {
+                    return NotFound($"No data found for entity {name}");
+                }
 
-            return Ok(entity);
+                return Ok(entity);
+            }
+            catch (Exception e)
+            {
+                return this.InternalServerError(e.FlattenMessages());
+            }
         }
 
         /// <summary>
@@ -113,37 +125,45 @@ namespace DataHub.Controllers
             [FromQuery(Name = "$expand")] string expand,
             [FromQuery(Name = "$filter")] string filter)
         {
-            ODataQueryOptions oDataQueryOptions = new ODataQueryOptions
+            try
             {
-                Top = top,
-                Skip = skip,
-                Select = select,
-                OrderBy = orderby,
-                Expand = expand,
-                Filters = string.IsNullOrEmpty(filter) ? null : new List<string> { filter }
-            };
+                ODataQueryOptions oDataQueryOptions = new ODataQueryOptions
+                {
+                    Top = top,
+                    Skip = skip,
+                    Select = select,
+                    OrderBy = orderby,
+                    Expand = expand,
+                    Filters = string.IsNullOrEmpty(filter) ? null : new List<string> { filter }
+                };
 
-            var entity = entitiesRepository.GetById(name);
-            if (entity == null)
+                var entity = entitiesRepository.GetById(name);
+                if (entity == null)
+                {
+                    return NotFound($"No data found for entity {name}");
+                }
+
+                var items = GetType()
+                    .GetMethod("ApplyQueryOptions")
+                    .MakeGenericMethod(entity.ToType())
+                    .Invoke(this, new object[] { oDataQueryOptions }) as IEnumerable<object>;
+
+                return Ok(new DataListResponse
+                {
+                    Data = new PagedListData<object>(items, top, skip, () =>
+                    {
+                        return GetType()
+                            .GetMethod("Count")
+                            .MakeGenericMethod(entity.ToType())
+                            .Invoke(this, null) as long?;
+                    })
+                });
+            }
+            catch (Exception e)
             {
-                return NotFound($"No data found for entity {name}");
+                return this.InternalServerError(e.FlattenMessages());
             }
 
-            var items = GetType()
-                .GetMethod("ApplyQueryOptions")
-                .MakeGenericMethod(entity.ToType())
-                .Invoke(this, new object[] { oDataQueryOptions }) as IEnumerable<object>;
-
-            return Ok(new DataListResponse
-            {
-                Data = new PagedListData<object>(items, top, skip, () =>
-                {
-                    return GetType()
-                        .GetMethod("Count")
-                        .MakeGenericMethod(entity.ToType())
-                        .Invoke(this, null) as long?;
-                })
-            });
         }
 
         public IEnumerable<T> ApplyQueryOptions<T>(ODataQueryOptions queryOptions)
@@ -164,47 +184,48 @@ namespace DataHub.Controllers
         }
 
         /// <summary>
-        /// Create a single entity data item
+        /// Create entity data items
         /// </summary>
         /// <param name="name">Data entity or type of document</param>
-        /// <param name="item">Entity object</param>
+        /// <param name="items">List of entity data items</param>
         /// <returns></returns>
         [HttpPost("{name}/data")]
         [ProducesResponseType(typeof(object), 201)]
         [ProducesResponseType(404)]
         public virtual IActionResult PostData(
-            [FromRoute]string name, 
-            [FromBody]dynamic item)
+            [FromRoute]string name,
+            [FromBody]List<dynamic> items)
         {
-            var entity = entitiesRepository.GetById(name);
-            if (entity == null)
+            try
             {
-                return NotFound($"Unknown entity {name}");
+                var entity = entitiesRepository.GetById(name);
+                if (entity == null)
+                {
+                    return NotFound($"Unknown entity {name}");
+                }
+
+                var newItems = GetType()
+                    .GetMethod("CreateMany")
+                    .MakeGenericMethod(entity.ToType())
+                    .Invoke(this, new object[] { items });
+
+                return Created(this.BuildLink($"/entities/{name}"), newItems);
             }
-
-            var newItem = GetType()
-                .GetMethod("Create")
-                .MakeGenericMethod(entity.ToType())
-                .Invoke(this, new object[] { item });
-
-            string uri = this.BuildLink($"/entities/{name}");
-            var idprop = newItem.GetType().GetProperty("Id");
-            if (idprop != null && newItem != null)
+            catch (Exception e)
             {
-                uri += $"/{idprop.GetValue(newItem)}";
+                return this.InternalServerError(e.FlattenMessages());
             }
-            return Created(uri, newItem);
         }
 
-        public T Create<T>(dynamic item)
+        public List<T> CreateMany<T>(List<dynamic> items)
             where T : class, new()
         {
             var repo = new EntityFrameworkRepository<T>(dbContext);
-            var newItem = JsonConvert.DeserializeObject<T>(
-                JsonConvert.SerializeObject(item));
-            repo.Create(newItem);
-            repo.SaveChanges();
-            return newItem;
+            var newItems = JsonConvert.DeserializeObject<List<T>>(
+                JsonConvert.SerializeObject(items));
+
+            repo.CreateMany(newItems);
+            return newItems;
         }
 
         /// <summary>
@@ -218,23 +239,30 @@ namespace DataHub.Controllers
         [ProducesResponseType(404)]
         public virtual async Task<IActionResult> GetDataById([FromRoute]string name, [FromRoute]string id)
         {
-            var entity = await entitiesRepository.GetByIdAsync(name);
-            if (entity == null)
+            try
             {
-                return NotFound($"No data found for entity {name}");
+                var entity = await entitiesRepository.GetByIdAsync(name);
+                if (entity == null)
+                {
+                    return NotFound($"No data found for entity {name}");
+                }
+
+                var item = GetType()
+                    .GetMethod("GetById")
+                    .MakeGenericMethod(entity.ToType())
+                    .Invoke(this, new object[] { id });
+
+                if (item == null)
+                {
+                    return NotFound();
+                }
+
+                return Ok(item);
             }
-
-            var item = GetType()
-                .GetMethod("GetById")
-                .MakeGenericMethod(entity.ToType())
-                .Invoke(this, new object[] { id });
-
-            if(item == null)
+            catch (Exception e)
             {
-                return NotFound();
+                return this.InternalServerError(e.FlattenMessages());
             }
-
-            return Ok(item);
         }
 
         public T GetById<T>(string id)
@@ -242,6 +270,64 @@ namespace DataHub.Controllers
         {
             var repo = new EntityFrameworkRepository<T>(dbContext);
             return repo.GetById(id);
+        }
+
+        /// <summary>
+        /// Update a single entity data item
+        /// </summary>
+        /// <param name="name">Data entity or type of document</param>
+        /// <param name="id">Id</param>
+        /// <param name="item">Data item to update</param>
+        /// <returns></returns>
+        [HttpPut("{name}/data/{id}")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(404)]
+        public virtual async Task<IActionResult> UpdateData(
+            [FromRoute]string name, 
+            [FromRoute]string id, 
+            [FromBody]dynamic item)
+        {
+            try
+            {
+                var entity = await entitiesRepository.GetByIdAsync(name);
+                if (entity == null)
+                {
+                    return NotFound($"No data found for entity {name}");
+                }
+
+                return Ok(GetType()
+                    .GetMethod("Update")
+                    .MakeGenericMethod(entity.ToType())
+                    .Invoke(this, new object[] { id, item }));
+            }
+            catch(KeyNotFoundException e)
+            {
+                return NotFound(e.Message);
+            }
+            catch (Exception e)
+            {
+                return this.InternalServerError(e.FlattenMessages());
+            }
+        }
+
+        public T Update<T>(string id, dynamic item)
+            where T : class
+        {
+            var repo = new EntityFrameworkRepository<T>(dbContext);
+            var existing = repo.GetById(id);
+            if(existing == null)
+            {
+                throw new KeyNotFoundException($"Entity {typeof(T)} with id {id} not found");
+            }
+
+            var inItem = JsonConvert.DeserializeObject<T>(JsonConvert.SerializeObject(item));
+            foreach (var prop in typeof(T).GetProperties())
+            {
+                prop.SetValue(existing, prop.GetValue(inItem));
+            }
+
+            repo.Update(existing);
+            return existing;
         }
 
         /// <summary>
@@ -255,28 +341,35 @@ namespace DataHub.Controllers
         [ProducesResponseType(404)]
         public virtual async Task<IActionResult> DeleteData([FromRoute]string name, [FromRoute]string id)
         {
-            var entity = await entitiesRepository.GetByIdAsync(name);
-            if (entity == null)
+            try
             {
-                return NotFound($"No data found for entity {name}");
+                var entity = await entitiesRepository.GetByIdAsync(name);
+                if (entity == null)
+                {
+                    return NotFound($"No data found for entity {name}");
+                }
+
+                var item = GetType()
+                    .GetMethod("GetById")
+                    .MakeGenericMethod(entity.ToType())
+                    .Invoke(this, new object[] { id });
+
+                if (item == null)
+                {
+                    return NotFound();
+                }
+
+                GetType()
+                    .GetMethod("Delete")
+                    .MakeGenericMethod(entity.ToType())
+                    .Invoke(this, new object[] { item });
+
+                return NoContent();
             }
-
-            var item = GetType()
-                .GetMethod("GetById")
-                .MakeGenericMethod(entity.ToType())
-                .Invoke(this, new object[] { id });
-
-            if (item == null)
+            catch (Exception e)
             {
-                return NotFound();
+                return this.InternalServerError(e.FlattenMessages());
             }
-
-            GetType()
-                .GetMethod("Delete")
-                .MakeGenericMethod(entity.ToType())
-                .Invoke(this, new object[] { item });
-
-            return NoContent();
         }
 
         public void Delete<T>(T item)

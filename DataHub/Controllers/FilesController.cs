@@ -45,26 +45,33 @@ namespace DataHub.Controllers
             [FromQuery(Name = "$expand")] string expand,
             [FromQuery(Name = "$filter")] string filter)
         {
-            ODataQueryOptions oDataQueryOptions = new ODataQueryOptions
+            try
             {
-                Top = top,
-                Skip = skip,
-                Select = select,
-                OrderBy = orderby,
-                Expand = expand,
-                Filters = string.IsNullOrEmpty(filter) ? null : new List<string> { filter }
-            };
-            var files = filesRepository.AsQueryable()
-                .OData().ApplyQueryOptionsWithoutSelectExpand(oDataQueryOptions);
-            foreach (var file in files)
-            {
-                file.DownloadUri = this.BuildLink($"files/{file.Id}");
-            }
+                ODataQueryOptions oDataQueryOptions = new ODataQueryOptions
+                {
+                    Top = top,
+                    Skip = skip,
+                    Select = select,
+                    OrderBy = orderby,
+                    Expand = expand,
+                    Filters = string.IsNullOrEmpty(filter) ? null : new List<string> { filter }
+                };
+                var files = filesRepository.AsQueryable()
+                    .OData().ApplyQueryOptionsWithoutSelectExpand(oDataQueryOptions);
+                foreach (var file in files)
+                {
+                    file.DownloadUri = this.BuildLink($"files/{file.Id}");
+                }
 
-            return Ok(new FileListResponse
+                return Ok(new FileListResponse
+                {
+                    Data = new PagedListData<FileInfo>(files)
+                });
+            }
+            catch (Exception e)
             {
-                Data = new PagedListData<FileInfo>(files)
-            });
+                return this.InternalServerError(e.FlattenMessages());
+            }
         }
 
         /// <summary>
@@ -77,13 +84,20 @@ namespace DataHub.Controllers
         [ProducesResponseType(404)]
         public virtual async Task<IActionResult> GetFile([FromRoute]string id)
         {
-            var e = await filesRepository.GetByIdAsync(id);
-            if (e == null)
+            try
             {
-                return NotFound($"No data found for file id {id}");
-            }
+                var e = await filesRepository.GetByIdAsync(id);
+                if (e == null)
+                {
+                    return NotFound($"No data found for file id {id}");
+                }
 
-            return Ok(e);
+                return Ok(e);
+            }
+            catch (Exception e)
+            {
+                return this.InternalServerError(e.FlattenMessages());
+            }
         }
 
         /// <summary>
@@ -96,16 +110,30 @@ namespace DataHub.Controllers
         [ProducesResponseType(404)]
         public virtual async Task GetFilePayload([FromRoute]string id)
         {
-            var blob = await blobRepository.GetByIdAsync(id);
-            if (blob == null)
+            try
             {
-                await this.WriteNotFound($"No payload found for file id {id}");
-                NotFound();
-            }
+                var file = await filesRepository.GetByIdAsync(id);
+                if (file == null)
+                {
+                    NotFound($"No data found for file id {id}");
+                }
 
-            Response.Headers.Add("content-type", "application/octet-stream");
-            Response.Headers.Add("content-disposition", $"attachment; filename={id}");
-            await blobRepository.DownloadAsync(blob, Response.Body);
+                var blob = await blobRepository.GetByIdAsync(id);
+                if (blob == null)
+                {
+                    await this.WriteNotFound($"No payload found for file id {id}");
+                    NotFound();
+                }
+
+                Response.Headers.Add("content-type", "application/octet-stream");
+                var filename = string.IsNullOrWhiteSpace(file.Filename) ? id : file.Filename;
+                Response.Headers.Add("content-disposition", $"attachment; filename={filename}");
+                await blobRepository.DownloadAsync(blob, Response.Body);
+            }
+            catch (Exception e)
+            {
+                this.InternalServerError(e.FlattenMessages());
+            }
         }
 
         /// <summary>
@@ -126,30 +154,37 @@ namespace DataHub.Controllers
             [FromForm]string format,
             [FromForm(Name = FileOperationFilter.FILE_PAYLOAD_PARM)] IFormFile fileData)
         {
-            if (fileData == null)
+            try
             {
-                return BadRequest("No file data");
+                if (fileData == null)
+                {
+                    return BadRequest("No file data");
+                }
+
+                var id = Guid.NewGuid().ToString();
+                var fileInfo = new Models.FileInfo
+                {
+                    Id = id,
+                    Source = source,
+                    Entity = entity,
+                    Filename = filename,
+                    Format = format,
+                    DownloadUri = this.BuildLink($"/files/{id}/payload")
+                };
+
+                filesRepository.Create(fileInfo);
+
+                using (var stream = fileData.OpenReadStream())
+                {
+                    await blobRepository.UploadAsync(new BlobInfo(id), stream);
+                }
+
+                return Created(this.BuildLink($"/files/{id}"), fileInfo);
             }
-
-            var id = Guid.NewGuid().ToString();
-            var fileInfo = new Models.FileInfo
+            catch (Exception e)
             {
-                Id = id,
-                Source = source,
-                Entity = entity,
-                Filename = filename,
-                Format = format,
-                DownloadUri = this.BuildLink($"/files/{id}/payload")
-            };
-
-            filesRepository.Create(fileInfo);
-            
-            using (var stream = fileData.OpenReadStream())
-            {
-                await blobRepository.UploadAsync(new BlobInfo(id), stream);
+                return this.InternalServerError(e.FlattenMessages());
             }
-
-            return Created(this.BuildLink($"/files/{id}"), fileInfo);
         }
     }
 }
