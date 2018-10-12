@@ -31,7 +31,7 @@ namespace DataHub.Repositories
 
         public void Download(BlobInfo entity, Stream stream)
         {
-            string s = "abcABC123";
+            string s = "From Mock BLOB repository";
             var writer = new StreamWriter(stream);
             writer.Write(s);
             writer.Flush();
@@ -64,9 +64,6 @@ namespace DataHub.Repositories
 
         public BlobInfo GetById(object id)
         {
-            if (id.ToString() != "1")
-                return null;
-
             return new BlobInfo
             {
                 Id = id.ToString()

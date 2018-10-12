@@ -14,6 +14,8 @@ namespace DataHub.Repositories
 
         public DbSet<Models.FileInfo> Files { get; set; }
 
+        public DbSet<Models.TimeseriesMetadata> TimeseriesMetadata { get; set; }
+
         private IEntitiesRepository entitiesRepository;
 
         private string connectionString;

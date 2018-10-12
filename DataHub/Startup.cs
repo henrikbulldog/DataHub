@@ -1,27 +1,23 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using DataHub.Entities;
+﻿using DataHub.Entities;
 using DataHub.Hubs;
-using DataHub.Middleware;
 using DataHub.Repositories;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.WindowsAzure.Storage;
-using Microsoft.WindowsAzure.Storage.Blob;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
-using RepositoryFramework.Azure.Blob;
 using RepositoryFramework.EntityFramework;
 using RepositoryFramework.Interfaces;
+using RepositoryFramework.Timeseries.InfluxDB;
 using Swashbuckle.AspNetCore.Swagger;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
 
 namespace DataHub
 {
@@ -53,7 +49,7 @@ namespace DataHub
 #else
                         @"Server=(localdb)\mssqllocaldb;Database=EFProviders.InMemory;Trusted_Connection=True;ConnectRetryCount=0",
 #endif
-                        sp.GetService<IEntitiesRepository>());
+                    sp.GetService<IEntitiesRepository>());
                     context.Database.EnsureCreated();
                     Seed(context);
                     return context;
@@ -79,6 +75,14 @@ namespace DataHub
                 typeof(IBlobRepository),
                 sp => new BlobRepository());
 #endif
+
+            services.AddScoped(
+                typeof(ITimeseriesRepository),
+                sp => new InfluxDBRepository("http://localhost:8086", "datahub", "ComputerInfo"));
+
+            services.AddScoped(
+                typeof(IQueryableRepository<Models.TimeseriesMetadata>),
+                sp => new EntityFrameworkRepository<Models.TimeseriesMetadata>(sp.GetService<EntitiesDBContext>()));
 
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
 
@@ -145,7 +149,7 @@ namespace DataHub
 
         private void Seed(EntitiesDBContext dbContext)
         {
-            if (dbContext.Set<DataPoint>().Count() == 0)
+            if (dbContext.Set<Entities.DataPoint>().Count() == 0)
             {
                 var tag1 = new TimeSeries
                 {
@@ -165,7 +169,7 @@ namespace DataHub
                 var r = new Random();
                 for (int i = 1; i <= 1000; i++)
                 {
-                    var ts1 = dbContext.Set<DataPoint>().Add(new DataPoint
+                    var ts1 = dbContext.Set<Entities.DataPoint>().Add(new Entities.DataPoint
                     {
                         Source = "Historian",
                         TimeSeriesId = i % 2 == 0 ? 1 : 2,
@@ -258,7 +262,8 @@ namespace DataHub
                                 }
                             }
                         }
-                    }});
+                    }
+                    });
             }
 
             dbContext.SaveChanges();

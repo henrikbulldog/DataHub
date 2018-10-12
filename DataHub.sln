@@ -5,7 +5,9 @@ VisualStudioVersion = 15.0.27703.2026
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataHub", "DataHub\DataHub.csproj", "{67058617-1AD8-4A96-8FCE-D12FBA124BC9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataHub.Entities", "DataHub.Entities\DataHub.Entities.csproj", "{7075FF35-92F5-44D3-9BF9-B307194CCCCA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataHub.Entities", "DataHub.Entities\DataHub.Entities.csproj", "{7075FF35-92F5-44D3-9BF9-B307194CCCCA}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RepositoryFramework", "RepositoryFramework\RepositoryFramework.csproj", "{DD5B8FAB-0530-4CE2-8DF7-A7BC16C2C663}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{7075FF35-92F5-44D3-9BF9-B307194CCCCA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7075FF35-92F5-44D3-9BF9-B307194CCCCA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7075FF35-92F5-44D3-9BF9-B307194CCCCA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DD5B8FAB-0530-4CE2-8DF7-A7BC16C2C663}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DD5B8FAB-0530-4CE2-8DF7-A7BC16C2C663}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DD5B8FAB-0530-4CE2-8DF7-A7BC16C2C663}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DD5B8FAB-0530-4CE2-8DF7-A7BC16C2C663}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

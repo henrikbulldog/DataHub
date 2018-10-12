@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using Community.OData.Linq;
@@ -7,6 +8,7 @@ using Community.OData.Linq.AspNetCore;
 using DataHub.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using RepositoryFramework.Interfaces;
 
 namespace DataHub.Controllers
@@ -37,7 +39,7 @@ namespace DataHub.Controllers
         /// <returns></returns>
         [HttpGet()]
         [ProducesResponseType(typeof(FileListResponse), 200)]
-        public virtual IActionResult GetFiles(
+        public async virtual Task<IActionResult> GetFilesAsync(
             [FromQuery(Name = "$top")] string top,
             [FromQuery(Name = "$skip")] string skip,
             [FromQuery(Name = "$select")] string select,
@@ -56,8 +58,11 @@ namespace DataHub.Controllers
                     Expand = expand,
                     Filters = string.IsNullOrEmpty(filter) ? null : new List<string> { filter }
                 };
-                var files = filesRepository.AsQueryable()
-                    .OData().ApplyQueryOptionsWithoutSelectExpand(oDataQueryOptions);
+                var files = await Task.FromResult(filesRepository
+                    .AsQueryable()
+                    .OData()
+                    .ApplyQueryOptionsWithoutSelectExpand(oDataQueryOptions)
+                    .ToList());
                 foreach (var file in files)
                 {
                     file.DownloadUri = this.BuildLink($"files/{file.Id}");
@@ -65,7 +70,7 @@ namespace DataHub.Controllers
 
                 return Ok(new FileListResponse
                 {
-                    Data = new PagedListData<FileInfo>(files)
+                    Data = await PagedListData<FileInfo>.CreateAsync(files)
                 });
             }
             catch (Exception e)
@@ -82,7 +87,7 @@ namespace DataHub.Controllers
         [HttpGet("{id}")]
         [ProducesResponseType(typeof(FileInfo), 200)]
         [ProducesResponseType(404)]
-        public virtual async Task<IActionResult> GetFile([FromRoute]string id)
+        public virtual async Task<IActionResult> GetFileAsync([FromRoute]string id)
         {
             try
             {
@@ -108,21 +113,22 @@ namespace DataHub.Controllers
         [HttpGet("{id}/payload")]
         [ProducesResponseType(200)]
         [ProducesResponseType(404)]
-        public virtual async Task GetFilePayload([FromRoute]string id)
+        public virtual async Task GetFilePayloadAsync([FromRoute]string id)
         {
             try
             {
                 var file = await filesRepository.GetByIdAsync(id);
                 if (file == null)
                 {
-                    NotFound($"No data found for file id {id}");
+                    Response.StatusCode = StatusCodes.Status404NotFound;
+                    await Response.WriteAsync($"No file found with id {id}");
                 }
 
                 var blob = await blobRepository.GetByIdAsync(id);
                 if (blob == null)
                 {
-                    await this.WriteNotFound($"No payload found for file id {id}");
-                    NotFound();
+                    Response.StatusCode = StatusCodes.Status404NotFound;
+                    await Response.WriteAsync($"No payload found for file id {id}");
                 }
 
                 Response.Headers.Add("content-type", "application/octet-stream");
@@ -132,7 +138,8 @@ namespace DataHub.Controllers
             }
             catch (Exception e)
             {
-                this.InternalServerError(e.FlattenMessages());
+                Response.StatusCode = StatusCodes.Status500InternalServerError;
+                await Response.WriteAsync(string.Join('\n', e.FlattenMessages()));
             }
         }
 
@@ -147,7 +154,7 @@ namespace DataHub.Controllers
         /// <returns></returns>
         [HttpPost]
         [ProducesResponseType(typeof(Models.FileInfo), 201)]
-        public virtual async Task<IActionResult> PostFile(
+        public virtual async Task<IActionResult> PostFileAsync(
             [FromForm]string source,
             [FromForm]string entity,
             [FromForm]string filename,
@@ -172,7 +179,7 @@ namespace DataHub.Controllers
                     DownloadUri = this.BuildLink($"/files/{id}/payload")
                 };
 
-                filesRepository.Create(fileInfo);
+                await filesRepository.CreateAsync(fileInfo);
 
                 using (var stream = fileData.OpenReadStream())
                 {

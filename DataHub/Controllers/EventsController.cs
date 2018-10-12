@@ -9,6 +9,7 @@ using DataHub.Hubs;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using RepositoryFramework.Interfaces;
 
@@ -36,7 +37,7 @@ namespace DataHub.Controllers
         [HttpGet("{id}")]
         [ProducesResponseType(typeof(Models.EventInfo), 200)]
         [ProducesResponseType(404)]
-        public virtual async Task<IActionResult> Get([FromRoute]string id)
+        public virtual async Task<IActionResult> GetByIdAsync([FromRoute]string id)
         {
             try
             {
@@ -66,7 +67,7 @@ namespace DataHub.Controllers
         /// <returns></returns>
         [HttpGet()]
         [ProducesResponseType(typeof(Models.EventListResponse), 200)]
-        public virtual IActionResult Get(
+        public async virtual Task<IActionResult> GetAsync(
             [FromQuery(Name = "$top")] string top,
             [FromQuery(Name = "$skip")] string skip,
             [FromQuery(Name = "$select")] string select,
@@ -85,17 +86,18 @@ namespace DataHub.Controllers
                     Expand = expand,
                     Filters = string.IsNullOrEmpty(filter) ? null : new List<string> { filter }
                 };
-                var events = eventsRepository
+                var events = await Task.FromResult(eventsRepository
                     .AsQueryable()
                     .OData()
-                    .ApplyQueryOptionsWithoutSelectExpand(oDataQueryOptions);
+                    .ApplyQueryOptionsWithoutSelectExpand(oDataQueryOptions)
+                    .ToList());
                 return Ok(new Models.EventListResponse
                 {
-                    Data = new Models.PagedListData<Models.EventInfo>(
+                    Data = await Models.PagedListData<Models.EventInfo>.CreateAsync(
                         events,
                         top,
                         skip,
-                        () => eventsRepository.AsQueryable().LongCount())
+                        async () => await eventsRepository.AsQueryable().LongCountAsync())
                 });
             }
             catch (Exception e)
@@ -112,7 +114,7 @@ namespace DataHub.Controllers
         [HttpPost]
         [ProducesResponseType(typeof(Models.EventInfo), 201)]
         [ProducesResponseType(400)]
-        public virtual async Task<IActionResult> Post([FromBody]Models.EventRequest eventRequest)
+        public virtual async Task<IActionResult> PostAsync([FromBody]Models.EventRequest eventRequest)
         {
             try
             {

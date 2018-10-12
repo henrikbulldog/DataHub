@@ -6,13 +6,13 @@ using System.Threading.Tasks;
 namespace DataHub.Models
 {
     /// <summary>
-    /// Event
+    /// Time series metadata
     /// </summary>
-    public class EventInfo : EventRequest
+    public class TimeseriesMetadata : TimeseriesMetadataRequest
     {
         /// <summary>
         /// Primary key
         /// </summary>
-        public string  Id { get; set; }
+        public string Id { get; set; }
     }
 }

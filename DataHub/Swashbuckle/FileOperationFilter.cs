@@ -35,6 +35,7 @@ namespace DataHub
 
                 operation.Consumes.Add("multipart/form-data");
             }
+#if RELEASE
             operation.Parameters.Add(new NonBodyParameter
             {
                 Name = "api-key",
@@ -43,6 +44,7 @@ namespace DataHub
                 Format = "password",
                 Required = true
             });
+#endif
         }
     }
 }

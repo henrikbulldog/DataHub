@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace DataHub.Models
 {
@@ -50,26 +51,30 @@ namespace DataHub.Models
         /// </summary>
         public IEnumerable<T> Items { get; set; }
 
-        public PagedListData(
-            IEnumerable<T> items, 
-            string top = null, 
-            string skip = null, 
-            Func<long?> getTotalItems = null)
+        public static async Task<PagedListData<T>> CreateAsync(
+            IEnumerable<T> items,
+            string top = null,
+            string skip = null,
+            Func<Task<long?>> getTotalItems = null)
         {
-            Items = items;
+            var r = new PagedListData<T>();
+            r.Items = items;
             int t;
-            if(int.TryParse(top, out t))
+            if (int.TryParse(top, out t))
             {
-                ItemsPerPage = t;
-                TotalItems = getTotalItems != null ? (long?)getTotalItems() : null;
-                TotalPages = TotalItems.Value / ItemsPerPage.Value;
+                r.ItemsPerPage = t;
+                r.TotalItems = getTotalItems != null ? await getTotalItems() : null;
+                r.TotalPages = r.TotalItems.Value / r.ItemsPerPage.Value;
                 int s;
                 if (int.TryParse(skip, out s))
                 {
-                    StartIndex = s;
-                    PageIndex = (t / s) + 1;
+                    r.StartIndex = s;
+                    r.PageIndex = (t / s) + 1;
                 }
             }
+
+            return r;
         }
+
     }
 }
