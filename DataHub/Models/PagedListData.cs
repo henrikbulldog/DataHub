@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace DataHub.Models
+namespace DataHub.Entities
 {
     public class PagedListData<T>
     {

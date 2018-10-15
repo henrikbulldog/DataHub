@@ -4,7 +4,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Community.OData.Linq;
 using Community.OData.Linq.AspNetCore;
-using DataHub.Models;
+using DataHub.Entities;
 using DataHub.Repositories;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;

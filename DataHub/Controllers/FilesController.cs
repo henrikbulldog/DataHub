@@ -5,7 +5,7 @@ using System.Net;
 using System.Threading.Tasks;
 using Community.OData.Linq;
 using Community.OData.Linq.AspNetCore;
-using DataHub.Models;
+using DataHub.Entities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,11 +16,11 @@ namespace DataHub.Controllers
     [Route("files")]
     public class FilesController : Controller
     {
-        private IQueryableRepository<Models.FileInfo> filesRepository;
+        private IQueryableRepository<Entities.FileInfo> filesRepository;
         private IBlobRepository blobRepository;
 
         public FilesController(
-            IQueryableRepository<Models.FileInfo> filesRepository,
+            IQueryableRepository<Entities.FileInfo> filesRepository,
             IBlobRepository blobRepository)
         {
             this.filesRepository = filesRepository;
@@ -106,6 +106,41 @@ namespace DataHub.Controllers
         }
 
         /// <summary>
+        /// Delete a file
+        /// </summary>
+        /// <param name="id">File id</param>
+        /// <returns></returns>
+        [HttpDelete("{id}")]
+        [ProducesResponseType(typeof(FileInfo), 204)]
+        [ProducesResponseType(404)]
+        public virtual async Task<IActionResult> DeleteFileAsync([FromRoute]string id)
+        {
+            try
+            {
+                var file = await filesRepository.GetByIdAsync(id);
+                if (file == null)
+                {
+                    return NotFound($"No file with id {id}");
+                }
+
+                var blob = await blobRepository.GetByIdAsync(id);
+                if (blob == null)
+                {
+                    return NotFound($"No payload found for file id {id}");
+                }
+
+                await blobRepository.DeleteAsync(blob);
+                await filesRepository.DeleteAsync(file);
+
+                return NoContent();
+            }
+            catch (Exception e)
+            {
+                return this.InternalServerError(e.FlattenMessages());
+            }
+        }
+
+        /// <summary>
         /// Download file payload by id
         /// </summary>
         /// <param name="id">File id</param>
@@ -153,7 +188,7 @@ namespace DataHub.Controllers
         /// <param name="fileData">File payload</param>
         /// <returns></returns>
         [HttpPost]
-        [ProducesResponseType(typeof(Models.FileInfo), 201)]
+        [ProducesResponseType(typeof(Entities.FileInfo), 201)]
         public virtual async Task<IActionResult> PostFileAsync(
             [FromForm]string source,
             [FromForm]string entity,
@@ -169,7 +204,7 @@ namespace DataHub.Controllers
                 }
 
                 var id = Guid.NewGuid().ToString();
-                var fileInfo = new Models.FileInfo
+                var fileInfo = new Entities.FileInfo
                 {
                     Id = id,
                     Source = source,

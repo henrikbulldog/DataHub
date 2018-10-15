@@ -6,14 +6,14 @@ namespace RepositoryFramework.Interfaces
 {
     public enum AggregationFunction
     {
-        Count,
-        Distinct,
-        Integral,
-        Mean,
-        Median,
-        Mode,
-        Spread,
-        Stddev,
-        Sum
+        count,
+        distinct,
+        integral,
+        mean,
+        median,
+        mode,
+        spread,
+        stddev,
+        sum
     }
 }

@@ -1,4 +1,4 @@
-﻿using DataHub.Models;
+﻿using DataHub.Entities;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;

@@ -6,14 +6,14 @@ namespace RepositoryFramework.Interfaces
 {
     public enum TimeInterval
     {
-        Raw,
-        Nanoseconds, //ns
-        Microseconds, //u
-        Milliseconds, //ms
-        Second, //s
-        Minute, //m
-        Hour, //h
-        Day, //d
-        Week //w
+        raw,
+        nanoseconds, //ns
+        microseconds, //u
+        milliseconds, //ms
+        second, //s
+        minute, //m
+        hour, //h
+        day, //d
+        week //w
     }
 }

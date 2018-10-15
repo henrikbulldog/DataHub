@@ -1,20 +1,14 @@
 ﻿using DataHub.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using System.Linq;
-using System.Collections.Generic;
-using System.Reflection;
-using DataHub.Models;
 
 namespace DataHub.Repositories
 {
     public class EntitiesDBContext : DbContext
     {
-        public DbSet<Models.EventInfo> Events { get; set; }
+        public DbSet<Entities.EventInfo> Events { get; set; }
 
-        public DbSet<Models.FileInfo> Files { get; set; }
-
-        public DbSet<Models.TimeseriesMetadata> TimeseriesMetadata { get; set; }
+        public DbSet<Entities.FileInfo> Files { get; set; }
 
         private IEntitiesRepository entitiesRepository;
 

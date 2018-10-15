@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Dynamic;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -20,32 +21,58 @@ namespace RepositoryFramework.Timeseries.InfluxDB
         private string uri;
         private string database;
         private string measurement;
+        private string username;
+        private string password;
         private MetricsCollector metricsCollector = null;
 
         private MetricsCollector MetricsCollector
         {
             get
             {
+                VerifyConnection();
                 if(metricsCollector == null)
                 {
                     metricsCollector = Metrics.Collector = new CollectorConfiguration()
                         .Batch.AtInterval(TimeSpan.FromSeconds(2))
-                        .WriteTo.InfluxDB(uri, database)
+                        .WriteTo.InfluxDB(uri, database, username, password)
                         .CreateCollector();
                 }
                 return metricsCollector;
             }
         }
 
-        public InfluxDBRepository(string uri, string database, string measurement)
+        public InfluxDBRepository(
+            string uri, 
+            string database, 
+            string measurement, 
+            string username = null, 
+            string password = null)
         {
             this.uri = uri;
             this.database = database;
             this.measurement = measurement;
+            this.username = username;
+            this.password = password;
             CollectorLog.RegisterErrorHandler((message, exception) =>
             {
                 throw new Exception(message, exception);
             });
+        }
+
+        public void VerifyConnection()
+        {
+            string svcCredentials = Convert.ToBase64String(ASCIIEncoding.ASCII.GetBytes(username + ":" + password));
+            var readRequest = new RestRequest("query", Method.GET)
+                .AddQueryParameter("q", $"show measurements")
+                .AddQueryParameter("db", database)
+                .AddHeader("Authorization", "Basic " + svcCredentials);
+            var task = CallApiAsync(readRequest);
+            task.WaitSync();
+            var r = task.Result;
+            if (r.StatusCode != System.Net.HttpStatusCode.OK)
+            {
+                throw new Exception(r.StatusDescription);
+            }
         }
 
         public void Create(Interfaces.TimeseriesData data)
@@ -66,17 +93,35 @@ namespace RepositoryFramework.Timeseries.InfluxDB
             }
         }
 
+        public async Task CreateAsync(Interfaces.TimeseriesData data)
+        {
+            await Task.Run(() => Create(data));
+        }
+
+
+        public void CreateMany(IEnumerable<TimeseriesData> data)
+        {
+            if (data == null)
+            {
+                return;
+            }
+            foreach(var d in data)
+            {
+                Create(d);
+            }
+        }
+
+        public async Task CreateManyAsync(IEnumerable<TimeseriesData> data)
+        {
+            await Task.Run(() => CreateMany(data));
+        }
+
         public void Flush()
         {
             if (metricsCollector != null)
             {
                 metricsCollector.Dispose();
             }
-        }
-
-        public async Task CreateAsync(Interfaces.TimeseriesData data)
-        {
-            await Task.Run(() => Create(data));
         }
 
         public IEnumerable<Interfaces.TimeseriesData> Find(IList<string> tags, string source = null, DateTime? from = null, DateTime? to = null)
@@ -97,20 +142,26 @@ namespace RepositoryFramework.Timeseries.InfluxDB
             if (from != null)
             {
                 where += string.IsNullOrEmpty(where) ? " where " : " and ";
-                where += $"time >= '{from.Value.ToString("o")}'";
+                where += $"time >= {((DateTimeOffset)from.Value).ToUnixTimeMilliseconds()}000000";
             }
 
             if (to != null)
             {
                 where += string.IsNullOrEmpty(where) ? " where " : " and ";
-                where += $"time <= '{to.Value.ToString("o")}'";
+                where += $"time <= {((DateTimeOffset)to.Value).ToUnixTimeMilliseconds()}000000";
             }
 
-            AddTagsFilter(tags, where);
+            where = AddTagsFilter(tags, where);
+
+            string svcCredentials = Convert.ToBase64String(ASCIIEncoding.ASCII.GetBytes(username + ":" + password));
+
             var readRequest = new RestRequest("query", Method.GET)
                 .AddQueryParameter("q", $"select * from {measurement}{where}")
-                .AddQueryParameter("db", database);
+                .AddQueryParameter("db", database)
+                .AddHeader("Authorization", "Basic " + svcCredentials);
+
             var r = await CallApiAsync(readRequest);
+
             if (r.StatusCode != System.Net.HttpStatusCode.OK)
             {
                 throw new Exception(r.StatusDescription);
@@ -125,7 +176,7 @@ namespace RepositoryFramework.Timeseries.InfluxDB
             return Deserialize(qr.Results[0]);
         }
 
-        private void AddTagsFilter(IList<string> tags, string where)
+        private string AddTagsFilter(IList<string> tags, string where)
         {
             if (tags.Count() > 0)
             {
@@ -135,8 +186,10 @@ namespace RepositoryFramework.Timeseries.InfluxDB
                     tagsFilter += string.IsNullOrEmpty(tagsFilter) ? "" : " or ";
                     tagsFilter += $"\"Tag\" = '{tag}'";
                 }
-                where += string.IsNullOrEmpty(where) ? " where " : " and " + $"({tagsFilter})";
+                where += string.IsNullOrEmpty(where) ? " where " : " and ";
+                where += $"({tagsFilter})";
             }
+            return where;
         }
 
         public IEnumerable<TimeseriesData> FindAggregate(IList<string> tags, TimeInterval timeInterval, IList<AggregationFunction> aggregationFunctions = null, string source = null, DateTime? from = null, DateTime? to = null)
@@ -172,16 +225,18 @@ namespace RepositoryFramework.Timeseries.InfluxDB
             AddTagsFilter(tags, where);
 
             string interval = GetTimeIntervalAsString(timeInterval);
-            string groupBy = "group by \"Tag\", \"Source\"";
+            string groupBy = " group by \"Tag\", \"Source\"";
             if(!string.IsNullOrEmpty(interval))
             {
                 groupBy += $" , time(1{interval})";
             }
 
+            string svcCredentials = Convert.ToBase64String(ASCIIEncoding.ASCII.GetBytes(username + ":" + password));
             var sql = $"select {AggregationFunctionsAsSQL(aggregationFunctions)} from {measurement}{where}{groupBy}";
             var readRequest = new RestRequest("query", Method.GET)
                 .AddQueryParameter("q", sql)
-                .AddQueryParameter("db", database);
+                .AddQueryParameter("db", database)
+                .AddHeader("Authorization", "Basic " + svcCredentials);
             var r = await CallApiAsync(readRequest);
             if (r.StatusCode != System.Net.HttpStatusCode.OK)
             {
@@ -241,13 +296,13 @@ namespace RepositoryFramework.Timeseries.InfluxDB
         {
             if(aggregationFunctions == null || aggregationFunctions.Count() == 0)
             {
-                aggregationFunctions = new List<AggregationFunction> { AggregationFunction.Mean };
+                aggregationFunctions = new List<AggregationFunction> { AggregationFunction.mean };
             }
 
             return string.Join(" , ", aggregationFunctions
                 .Select(f =>
                 {
-                    var s = AggregationFunctionAsString(f);
+                    var s = f.ToString();
                     return $"{s}(Value) as {s}";
                 }));
         }
@@ -257,15 +312,15 @@ namespace RepositoryFramework.Timeseries.InfluxDB
             var function = "";
             switch (aggregationFunction)
             {
-                case AggregationFunction.Count: function = "count"; break;
-                case AggregationFunction.Distinct: function = "distinct"; break;
-                case AggregationFunction.Integral: function = "integral"; break;
-                case AggregationFunction.Mean: function = "mean"; break;
-                case AggregationFunction.Median: function = "median"; break;
-                case AggregationFunction.Mode: function = "mode"; break;
-                case AggregationFunction.Spread: function = "spread"; break;
-                case AggregationFunction.Stddev: function = "stddev"; break;
-                case AggregationFunction.Sum: function = "sum"; break;
+                case AggregationFunction.count: function = "count"; break;
+                case AggregationFunction.distinct: function = "distinct"; break;
+                case AggregationFunction.integral: function = "integral"; break;
+                case AggregationFunction.mean: function = "mean"; break;
+                case AggregationFunction.median: function = "median"; break;
+                case AggregationFunction.mode: function = "mode"; break;
+                case AggregationFunction.spread: function = "spread"; break;
+                case AggregationFunction.stddev: function = "stddev"; break;
+                case AggregationFunction.sum: function = "sum"; break;
             }
             return function;
         }
@@ -275,14 +330,14 @@ namespace RepositoryFramework.Timeseries.InfluxDB
             string interval = null;
             switch (timeinterval)
             {
-                case TimeInterval.Nanoseconds: interval = "ns"; break;
-                case TimeInterval.Microseconds: interval = "u"; break;
-                case TimeInterval.Milliseconds: interval = "ms"; break;
-                case TimeInterval.Second: interval = "s"; break;
-                case TimeInterval.Minute: interval = "m"; break;
-                case TimeInterval.Hour: interval = "h"; break;
-                case TimeInterval.Day: interval = "d"; break;
-                case TimeInterval.Week: interval = "w"; break;
+                case TimeInterval.nanoseconds: interval = "ns"; break;
+                case TimeInterval.microseconds: interval = "u"; break;
+                case TimeInterval.milliseconds: interval = "ms"; break;
+                case TimeInterval.second: interval = "s"; break;
+                case TimeInterval.minute: interval = "m"; break;
+                case TimeInterval.hour: interval = "h"; break;
+                case TimeInterval.day: interval = "d"; break;
+                case TimeInterval.week: interval = "w"; break;
             }
             return interval;
         }
@@ -310,8 +365,8 @@ namespace RepositoryFramework.Timeseries.InfluxDB
 
                 r.AddRange(serie.Values.GroupBy(v => new
                 {
-                    Source = v.ElementAt(sourceColumn).ToString(),
-                    Tag = v.ElementAt(tagColumn).ToString()
+                    Source = sourceColumn > 0 ? v.ElementAt(sourceColumn).ToString() : null,
+                    Tag = tagColumn > 0 ? v.ElementAt(tagColumn).ToString() : null
                 })
                 .Select(g => new Interfaces.TimeseriesData
                 {
@@ -319,13 +374,20 @@ namespace RepositoryFramework.Timeseries.InfluxDB
                     Source = g.Key.Source,
                     DataPoints = new List<DataPoint>(g.Select(p => new DataPoint
                     {
-                        Timestamp = (DateTime)p.ElementAt(timeColumn),
-                        Value = p.ElementAt(valueColumn)
+                        Timestamp = ToDateTime(p.ElementAt(timeColumn)),
+                        Value = valueColumn > 0 ? p.ElementAt(valueColumn) : null
                     }))
                 }));
             }
 
             return r;
+        }
+
+        private static DateTime ToDateTime(object o)
+        {
+            DateTime dt;
+            DateTime.TryParse(o.ToString(), out dt);
+            return dt;
         }
 
         public void Dispose()

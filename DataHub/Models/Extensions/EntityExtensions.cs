@@ -5,7 +5,7 @@ using System.Dynamic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace DataHub.Models
+namespace DataHub.Entities
 {
     public static class EntityExtensions
     {

@@ -3,13 +3,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace DataHub.Models
+namespace DataHub.Entities
 {
-    /// <summary>
-    /// Time series metadata
-    /// </summary>
-    public class TimeseriesMetadataRequest
+    public class TimeseriesMetadata
     {
+        /// <summary>
+        /// Primary key
+        /// </summary>
+        public string Id { get; set; }
+
         /// <summary>
         /// Time series name or tag
         /// </summary>

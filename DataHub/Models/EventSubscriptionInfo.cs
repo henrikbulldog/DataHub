@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace DataHub.Models
+namespace DataHub.Entities
 {
     public class EventSubscriptionInfo
     {
@@ -16,6 +16,11 @@ namespace DataHub.Models
         /// Event subscription protocol
         /// </summary>
         public string Protocol { get; set; }
+
+        /// <summary>
+        /// Valid message names
+        /// </summary>
+        public string ValidMessageNames { get; set; }
 
         /// <summary>
         /// Uri to client documentation

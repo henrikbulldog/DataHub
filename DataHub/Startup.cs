@@ -1,13 +1,17 @@
 ﻿using DataHub.Entities;
 using DataHub.Hubs;
+using DataHub.Middleware;
 using DataHub.Repositories;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.WindowsAzure.Storage;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
+using RepositoryFramework.Azure.Blob;
 using RepositoryFramework.EntityFramework;
 using RepositoryFramework.Interfaces;
 using RepositoryFramework.Timeseries.InfluxDB;
@@ -56,12 +60,12 @@ namespace DataHub
                 });
 
             services.AddScoped(
-                typeof(IQueryableRepository<Models.FileInfo>),
-                sp => new EntityFrameworkRepository<Models.FileInfo>(sp.GetService<EntitiesDBContext>()));
+                typeof(IQueryableRepository<Entities.FileInfo>),
+                sp => new EntityFrameworkRepository<Entities.FileInfo>(sp.GetService<EntitiesDBContext>()));
 
             services.AddScoped(
-                typeof(IQueryableRepository<Models.EventInfo>),
-                sp => new EntityFrameworkRepository<Models.EventInfo>(sp.GetService<EntitiesDBContext>()));
+                typeof(IQueryableRepository<EventInfo>),
+                sp => new EntityFrameworkRepository<EventInfo>(sp.GetService<EntitiesDBContext>()));
 
 #if RELEASE
             services.AddScoped(
@@ -70,19 +74,32 @@ namespace DataHub
                     .Parse(Environment.GetEnvironmentVariable("Azure.Storage.Connection"))
                     .CreateCloudBlobClient()
                     .GetContainerReference(Configuration["Azure.Blob:Container"])));
-#else
+#else   
             services.AddScoped(
                 typeof(IBlobRepository),
                 sp => new BlobRepository());
 #endif
 
+//#if RELEASE
             services.AddScoped(
                 typeof(ITimeseriesRepository),
-                sp => new InfluxDBRepository("http://localhost:8086", "datahub", "ComputerInfo"));
+                sp => new InfluxDBRepository(
+                    Configuration["InfluxDB:Uri"],
+                    Configuration["InfluxDB:Database"],
+                    Configuration["InfluxDB:Measurement"],
+                    Environment.GetEnvironmentVariable("InfluxDB.Username"),
+                    Environment.GetEnvironmentVariable("InfluxDB.Password")));
+//#else
+//            services.AddScoped(
+//                typeof(ITimeseriesRepository),
+//                sp => new InfluxDBRepository("http://localhost:8086",
+//                    Configuration["InfluxDB:Database"],
+//                    Configuration["InfluxDB:Measurement"]));
+//#endif
 
             services.AddScoped(
-                typeof(IQueryableRepository<Models.TimeseriesMetadata>),
-                sp => new EntityFrameworkRepository<Models.TimeseriesMetadata>(sp.GetService<EntitiesDBContext>()));
+                typeof(IQueryableRepository<TimeseriesMetadata>),
+                sp => new EntityFrameworkRepository<TimeseriesMetadata>(sp.GetService<EntitiesDBContext>()));
 
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
 
@@ -92,6 +109,8 @@ namespace DataHub
                 options.SerializerSettings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
                 options.SerializerSettings.NullValueHandling = NullValueHandling.Ignore;
             });
+
+            services.AddApplicationInsightsTelemetry();
 
             services.AddSwaggerGen(c =>
             {
@@ -114,7 +133,10 @@ namespace DataHub
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(
+            IApplicationBuilder app, 
+            IHostingEnvironment env,
+            ILoggerFactory loggerFactory)
         {
             using (var serviceScope = app.ApplicationServices.GetService<IServiceScopeFactory>().CreateScope())
             {
@@ -139,6 +161,8 @@ namespace DataHub
             app.ApplyUserKeyValidation();
 #endif
 
+            loggerFactory.AddApplicationInsights(app.ApplicationServices, Microsoft.Extensions.Logging.LogLevel.Warning);
+
             app.UseMvc();
             app.UseSwagger();
             app.UseSwaggerUI(c =>
@@ -149,45 +173,33 @@ namespace DataHub
 
         private void Seed(EntitiesDBContext dbContext)
         {
-            if (dbContext.Set<Entities.DataPoint>().Count() == 0)
+            if (dbContext.Set<Entities.Asset>().Count() == 0)
             {
-                var tag1 = new TimeSeries
+                var tag1 = new TimeseriesMetadata
                 {
                     Name = "ABC123",
                     Description = "Some tag",
                     Units = "Pa"
                 };
-                var tag2 = new TimeSeries
+                var tag2 = new TimeseriesMetadata
                 {
                     Name = "ABC234",
                     Description = "Some other tag",
                     Units = "Pa"
                 };
-                dbContext.Set<TimeSeries>().Add(tag1);
-                dbContext.Set<TimeSeries>().Add(tag2);
+                dbContext.Set<TimeseriesMetadata>().Add(tag1);
+                dbContext.Set<TimeseriesMetadata>().Add(tag2);
 
-                var r = new Random();
-                for (int i = 1; i <= 1000; i++)
-                {
-                    var ts1 = dbContext.Set<Entities.DataPoint>().Add(new Entities.DataPoint
-                    {
-                        Source = "Historian",
-                        TimeSeriesId = i % 2 == 0 ? 1 : 2,
-                        Timestamp = DateTime.Now,
-                        Value = r.NextDouble().ToString(CultureInfo.InvariantCulture)
-                    });
-                }
-
-                dbContext.Set<Models.EventInfo>()
-                    .Add(new Models.EventInfo
+                dbContext.Set<Entities.EventInfo>()
+                    .Add(new Entities.EventInfo
                     {
                         Id = "1",
                         Source = "Source",
                         Time = DateTime.Now,
                         Name = "Type"
                     });
-                dbContext.Set<Models.EventInfo>()
-                    .Add(new Models.EventInfo
+                dbContext.Set<Entities.EventInfo>()
+                    .Add(new Entities.EventInfo
                     {
                         Id = "2",
                         Source = "Source",
@@ -195,8 +207,8 @@ namespace DataHub
                         Name = "Type"
                     });
 
-                dbContext.Set<Models.FileInfo>().Add(
-                    new Models.FileInfo
+                dbContext.Set<Entities.FileInfo>().Add(
+                    new Entities.FileInfo
                     {
                         Entity = "SensorData",
                         Format = "CSV",
@@ -204,8 +216,8 @@ namespace DataHub
                         Id = "1",
                         Source = "Hist"
                     });
-                dbContext.Set<Models.FileInfo>().Add(
-                    new Models.FileInfo
+                dbContext.Set<Entities.FileInfo>().Add(
+                    new Entities.FileInfo
                     {
                         Entity = "SensorData",
                         Format = "CSV",
@@ -246,7 +258,7 @@ namespace DataHub
                                             Description = "Mud pump no.1",
                                             Manufacturer = "Some producer",
                                             SerialNumber = "1234568790",
-                                            TimeSeries = new List<TimeSeries> { tag1 }
+                                            TimeSeries = new List<TimeseriesMetadata> { tag1 }
                                         },
                                          new Asset
                                         {
@@ -256,7 +268,7 @@ namespace DataHub
                                             Tag = "325-G2",
                                             Manufacturer = "Some other producer",
                                             SerialNumber = "0987654321",
-                                            TimeSeries = new List<TimeSeries> { tag2 },
+                                            TimeSeries = new List<TimeseriesMetadata> { tag2 },
                                         }
                                     }
                                 }

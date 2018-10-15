@@ -1,12 +1,16 @@
 ﻿using Community.OData.Linq;
 using Community.OData.Linq.AspNetCore;
-using DataHub.Models;
+using DataHub.Entities;
+using DataHub.Hubs;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 using RepositoryFramework.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace DataHub.Controllers
@@ -17,13 +21,16 @@ namespace DataHub.Controllers
     {
         private ITimeseriesRepository timeseriesRepository;
         private IQueryableRepository<TimeseriesMetadata> timeseriesMetadataRepository;
+        private IHubContext<EventHub> eventHub;
 
         public TimeseriesController(
             ITimeseriesRepository timeseriesRepository,
-            IQueryableRepository<TimeseriesMetadata> timeseriesMetadataRepository)
+            IQueryableRepository<TimeseriesMetadata> timeseriesMetadataRepository,
+            IHubContext<EventHub> eventHub)
         {
             this.timeseriesRepository = timeseriesRepository;
             this.timeseriesMetadataRepository = timeseriesMetadataRepository;
+            this.eventHub = eventHub;
         }
 
         /// <summary>
@@ -34,7 +41,7 @@ namespace DataHub.Controllers
         [HttpPost("metadata")]
         [ProducesResponseType(typeof(List<TimeseriesMetadata>), 201)]
         [ProducesResponseType(400)]
-        public async virtual Task<IActionResult> PostMetadataAsync([FromBody]List<TimeseriesMetadataRequest> items)
+        public async virtual Task<IActionResult> PostMetadataAsync([FromBody]List<TimeseriesMetadata> items)
         {
             try
             {
@@ -45,7 +52,7 @@ namespace DataHub.Controllers
 
                 var data = items.Select(i => new TimeseriesMetadata
                 {
-                    Id = Guid.NewGuid().ToString(),
+                    Id = string.IsNullOrEmpty(i.Id) ? Guid.NewGuid().ToString() : i.Id,
                     Created = i.Created,
                     Description = i.Description,
                     Name = i.Name,
@@ -120,7 +127,7 @@ namespace DataHub.Controllers
         /// <param name="id">Timeseries metadata id</param>
         /// <returns></returns>
         [HttpGet("metadata/{id}")]
-        [ProducesResponseType(typeof(Models.EventInfo), 200)]
+        [ProducesResponseType(typeof(Entities.EventInfo), 200)]
         [ProducesResponseType(404)]
         public virtual async Task<IActionResult> GetMetadataByIdAsync([FromRoute]string id)
         {
@@ -140,6 +147,89 @@ namespace DataHub.Controllers
             }
         }
 
+        [HttpDelete("metadata/{id}")]
+        [ProducesResponseType(204)]
+        [ProducesResponseType(404)]
+        public virtual async Task<IActionResult> DeleteMetadataByIdAsync([FromRoute]string id)
+        {
+            try
+            {
+                var e = await timeseriesMetadataRepository.GetByIdAsync(id);
+                if (e == null)
+                {
+                    return NotFound($"No data found for timeseries metadata id {id}");
+                }
+
+                await timeseriesMetadataRepository.DeleteAsync(e);
+
+                return NoContent();
+            }
+            catch (Exception e)
+            {
+                return this.InternalServerError(e.FlattenMessages());
+            }
+        }
+
+        /// <summary>
+        /// Create timeseries datapoints. You can subscribe to datapoint creation, see instructions in /timeseries/subscriptionInfo.
+        /// </summary>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        [HttpPost()]
+        [ProducesResponseType(201)]
+        [ProducesResponseType(400)]
+        public async virtual Task<IActionResult> PostAsync([FromBody]List<TimeseriesData> data)
+        {
+            try
+            {
+                if (data == null || data.Count == 0)
+                {
+                    return BadRequest($"Timeseries data must be specified");
+                }
+
+                await timeseriesRepository.CreateManyAsync(data);
+                foreach (var ts in data)
+                {
+                    await PublishEventAsync(ts.Tag, JsonConvert.SerializeObject(ts));
+                }
+                return Created(this.BuildLink(), null);
+            }
+            catch (Exception e)
+            {
+                return this.InternalServerError(e.FlattenMessages());
+            }
+        }
+
+        /// <summary>
+        /// Get timeseries datapoint subscription instructions
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("/timeseries/subscriptionInfo")]
+        [ProducesResponseType(typeof(Entities.EventSubscriptionInfo), 200)]
+        public async virtual Task<IActionResult> GetEventSubscriptionInfo()
+        {
+            try
+            {
+                var tsNames = await timeseriesMetadataRepository.AsQueryable()
+                    .Select(e => e.Name)
+                    .Distinct()
+                    .ToListAsync();
+
+                return Ok(new Entities.EventSubscriptionInfo
+                {
+                    ConnectionUri = this.BuildLink(Startup.EVENT_HUB_PATH),
+                    Protocol = "SignalR",
+                    ValidMessageNames = string.Join(',', tsNames),
+                    ClientDocumentationUri = "https://docs.microsoft.com/en-us/aspnet/core/signalr/clients?view=aspnetcore-2.1"
+                });
+            }
+            catch (Exception e)
+            {
+                return this.InternalServerError(e.FlattenMessages());
+            }
+        }
+
+
         /// <summary>
         /// Query timeseries 
         /// </summary>
@@ -147,8 +237,8 @@ namespace DataHub.Controllers
         /// <param name="source">Originating data source</param>
         /// <param name="from">From</param>
         /// <param name="to">To</param>
-        /// <param name="timeInterval">Aggregation time interval
-        /// <param name="aggregationFunctions">Aggregation function to use with group by or time interval
+        /// <param name="timeInterval">Aggregation time interval. Available values : raw, nanosecond, microsecond, millisecond, second, minute, hour, day, week, month, year</param>
+        /// <param name="aggregationFunctions">Comma-spearated list of aggregation functions to use with group by or time interval. Available values : count, distinct, integral, mean, median, mode, spread, stddev, sum</param>
         /// <returns></returns>
         [HttpGet()]
         [ProducesResponseType(typeof(IEnumerable<TimeseriesData>), 200)]
@@ -158,20 +248,49 @@ namespace DataHub.Controllers
             [FromQuery]string source,
             [FromQuery]DateTime? from,
             [FromQuery]DateTime? to,
-            [FromQuery]TimeInterval timeInterval,
-            [FromQuery]IList<AggregationFunction> aggregationFunctions
+            [FromQuery]string timeInterval = null,
+            [FromQuery]string aggregationFunctions = null
             )
         {
             try
             {
-                IEnumerable<TimeseriesData> data;
-                if(timeInterval == TimeInterval.Raw)
+                string[] taglist = { };
+                if(!string.IsNullOrWhiteSpace(tags))
                 {
-                    data = await timeseriesRepository.FindAsync(tags.Split(','), source, from, to);
+                    tags = Regex.Replace(tags, @"\s+", "");
+                    taglist = tags.Split(',');
+                }
+
+                var timeIntervalEnum = TimeInterval.raw;
+                if(!string.IsNullOrWhiteSpace(timeInterval))
+                {
+                    timeInterval = Regex.Replace(timeInterval, @"\s+", "").ToLower();
+                    Enum.TryParse<TimeInterval>(timeInterval, out timeIntervalEnum);
+                }
+
+                var aggregationFunctionEnums = new List<AggregationFunction>();
+                if (!string.IsNullOrWhiteSpace(aggregationFunctions))
+                {
+                    aggregationFunctions = Regex.Replace(aggregationFunctions, @"\s+", "").ToLower();
+                    var l = aggregationFunctions.Split(',');
+                    foreach (var s in l)
+                    {
+                        AggregationFunction f;
+                        if(Enum.TryParse<AggregationFunction>(s, out f))
+                        {
+                            aggregationFunctionEnums.Add(f);
+                        }
+                    }
+                }
+
+                IEnumerable<TimeseriesData> data;
+                if(timeIntervalEnum == TimeInterval.raw)
+                {
+                    data = await timeseriesRepository.FindAsync(taglist, source, from, to);
                 }
                 else
                 {
-                    data = await timeseriesRepository.FindAggregateAsync(tags.Split(','), timeInterval, aggregationFunctions, source, from, to);
+                    data = await timeseriesRepository.FindAggregateAsync(taglist, timeIntervalEnum, aggregationFunctionEnums, source, from, to);
                 }
                 return Ok(data);
             }
@@ -179,6 +298,10 @@ namespace DataHub.Controllers
             {
                 return this.InternalServerError(e.FlattenMessages());
             }
+        }
+        private async Task PublishEventAsync(string messageType, string message)
+        {
+            await eventHub.Clients.All.SendAsync(messageType, message);
         }
     }
 }

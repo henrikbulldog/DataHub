@@ -3,10 +3,18 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace DataHub.Models
+namespace DataHub.Entities
 {
-    public class EventRequest
+    /// <summary>
+    /// Event
+    /// </summary>
+    public class EventInfo
     {
+        /// <summary>
+        /// Primary key
+        /// </summary>
+        public string  Id { get; set; }
+
         /// <summary>
         /// Originating data source
         /// </summary>

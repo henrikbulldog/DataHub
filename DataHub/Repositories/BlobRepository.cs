@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace DataHub.Repositories
@@ -11,22 +10,20 @@ namespace DataHub.Repositories
     {
         public void Delete(BlobInfo entity)
         {
-            throw new NotImplementedException();
         }
 
         public Task DeleteAsync(BlobInfo entity)
         {
-            throw new NotImplementedException();
+            return Task.Run(() => { });
         }
 
         public void DeleteMany(IEnumerable<BlobInfo> entities)
         {
-            throw new NotImplementedException();
         }
 
         public Task DeleteManyAsync(IEnumerable<BlobInfo> entities)
         {
-            throw new NotImplementedException();
+            return Task.Run(() => { });
         }
 
         public void Download(BlobInfo entity, Stream stream)
@@ -44,22 +41,28 @@ namespace DataHub.Repositories
 
         public IEnumerable<BlobInfo> Find()
         {
-            throw new NotImplementedException();
+            return new List<BlobInfo>
+            {
+                new BlobInfo
+                {
+                    Id = Guid.NewGuid().ToString()
+                }
+            };
         }
 
         public IEnumerable<BlobInfo> Find(string filter)
         {
-            throw new NotImplementedException();
+            return Find();
         }
 
         public Task<IEnumerable<BlobInfo>> FindAsync()
         {
-            throw new NotImplementedException();
+            return Task.Run(() => Find());
         }
 
         public Task<IEnumerable<BlobInfo>> FindAsync(string filter)
         {
-            throw new NotImplementedException();
+            return Task.Run(() => Find());
         }
 
         public BlobInfo GetById(object id)

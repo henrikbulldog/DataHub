@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
-namespace DataHub.Models
+namespace DataHub.Entities
 {
     public class Entity
     {

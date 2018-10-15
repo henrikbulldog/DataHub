@@ -18,11 +18,11 @@ namespace DataHub.Controllers
     [Route("events")]
     public class EventsController : Controller
     {
-        private IQueryableRepository<Models.EventInfo> eventsRepository;
+        private IQueryableRepository<Entities.EventInfo> eventsRepository;
         private IHubContext<EventHub> eventHub;
 
         public EventsController(
-            IQueryableRepository<Models.EventInfo> eventsRepository,
+            IQueryableRepository<Entities.EventInfo> eventsRepository,
             IHubContext<EventHub> eventHub)
         {
             this.eventsRepository = eventsRepository;
@@ -35,7 +35,7 @@ namespace DataHub.Controllers
         /// <param name="id">Event id</param>
         /// <returns></returns>
         [HttpGet("{id}")]
-        [ProducesResponseType(typeof(Models.EventInfo), 200)]
+        [ProducesResponseType(typeof(Entities.EventInfo), 200)]
         [ProducesResponseType(404)]
         public virtual async Task<IActionResult> GetByIdAsync([FromRoute]string id)
         {
@@ -66,7 +66,7 @@ namespace DataHub.Controllers
         /// <param name="filter">Filter items by property values, see [OData Filtering](http://docs.oasis-open.org/odata/odata/v4.0/odata-v4.0-part1-protocol.html#_Toc445374625)</param>
         /// <returns></returns>
         [HttpGet()]
-        [ProducesResponseType(typeof(Models.EventListResponse), 200)]
+        [ProducesResponseType(typeof(Entities.EventListResponse), 200)]
         public async virtual Task<IActionResult> GetAsync(
             [FromQuery(Name = "$top")] string top,
             [FromQuery(Name = "$skip")] string skip,
@@ -91,9 +91,9 @@ namespace DataHub.Controllers
                     .OData()
                     .ApplyQueryOptionsWithoutSelectExpand(oDataQueryOptions)
                     .ToList());
-                return Ok(new Models.EventListResponse
+                return Ok(new Entities.EventListResponse
                 {
-                    Data = await Models.PagedListData<Models.EventInfo>.CreateAsync(
+                    Data = await Entities.PagedListData<Entities.EventInfo>.CreateAsync(
                         events,
                         top,
                         skip,
@@ -112,9 +112,9 @@ namespace DataHub.Controllers
         /// <param name="eventRequest">Event request</param>
         /// <returns></returns>
         [HttpPost]
-        [ProducesResponseType(typeof(Models.EventInfo), 201)]
+        [ProducesResponseType(typeof(Entities.EventInfo), 201)]
         [ProducesResponseType(400)]
-        public virtual async Task<IActionResult> PostAsync([FromBody]Models.EventRequest eventRequest)
+        public virtual async Task<IActionResult> PostAsync([FromBody]Entities.EventInfo eventRequest)
         {
             try
             {
@@ -123,10 +123,9 @@ namespace DataHub.Controllers
                     return BadRequest("No Event data");
                 }
 
-                var id = Guid.NewGuid().ToString();
-                var eventInfo = new Models.EventInfo
+                var eventInfo = new Entities.EventInfo
                 {
-                    Id = id,
+                    Id = string.IsNullOrEmpty(eventRequest.Id) ? Guid.NewGuid().ToString() : eventRequest.Id,
                     Source = eventRequest.Source,
                     Name = eventRequest.Name,
                     Time = eventRequest.Time,
@@ -134,7 +133,7 @@ namespace DataHub.Controllers
                 };
                 await eventsRepository.CreateAsync(eventInfo);
                 await PublishEventAsync(eventRequest.Name, JsonConvert.SerializeObject(eventInfo));
-                return Created(this.BuildLink($"/events/{id}"), eventInfo);
+                return Created(this.BuildLink($"/events/{eventInfo.Id}"), eventInfo);
             }
             catch (Exception e)
             {
@@ -147,15 +146,21 @@ namespace DataHub.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpGet("/events/subscriptionInfo")]
-        [ProducesResponseType(typeof(Models.EventSubscriptionInfo), 200)]
-        public virtual IActionResult GetEventSubscriptionInfo()
+        [ProducesResponseType(typeof(Entities.EventSubscriptionInfo), 200)]
+        public async virtual Task<IActionResult> GetEventSubscriptionInfo()
         {
             try
             {
-                return Ok(new Models.EventSubscriptionInfo
+                var eventNames = await eventsRepository.AsQueryable()
+                    .Select(e => e.Name)
+                    .Distinct()
+                    .ToListAsync();
+
+                return Ok(new Entities.EventSubscriptionInfo
                 {
                     ConnectionUri = this.BuildLink(Startup.EVENT_HUB_PATH),
                     Protocol = "SignalR",
+                    ValidMessageNames = string.Join(',', eventNames),
                     ClientDocumentationUri = "https://docs.microsoft.com/en-us/aspnet/core/signalr/clients?view=aspnetcore-2.1"
                 });
             }

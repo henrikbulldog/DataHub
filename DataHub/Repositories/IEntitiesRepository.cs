@@ -1,4 +1,4 @@
-﻿using DataHub.Models;
+﻿using DataHub.Entities;
 using RepositoryFramework.Interfaces;
 using System;
 using System.Collections.Generic;

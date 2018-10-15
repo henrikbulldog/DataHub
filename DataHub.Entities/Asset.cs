@@ -15,7 +15,7 @@ namespace DataHub.Entities
         public string Manufacturer { get; set; }
         public DateTime Created { get; set; }
         public DateTime Updated { get; set; }
-        public IEnumerable<TimeSeries> TimeSeries { get; set; }
+        public IEnumerable<TimeseriesMetadata> TimeSeries { get; set; }
         public IEnumerable<FileLink> FileLinks { get; set; }
         public IEnumerable<Asset> Assets { get; set; }
     }

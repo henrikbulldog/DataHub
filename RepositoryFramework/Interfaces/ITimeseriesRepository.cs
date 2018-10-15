@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace RepositoryFramework.Interfaces
 {
-    public interface ITimeseriesRepository : ICreate<TimeseriesData>, ICreateAsync<TimeseriesData>
+    public interface ITimeseriesRepository : ICreate<TimeseriesData>, ICreateAsync<TimeseriesData>, ICreateMany<TimeseriesData>, ICreateManyAsync<TimeseriesData>
     {
         IEnumerable<TimeseriesData> Find(
             IList<string> tags,
@@ -21,7 +21,7 @@ namespace RepositoryFramework.Interfaces
 
         IEnumerable<TimeseriesData> FindAggregate(
             IList<string> tags,
-            TimeInterval timeInterval = TimeInterval.Raw,
+            TimeInterval timeInterval = TimeInterval.raw,
             IList<AggregationFunction> aggregationFunctions = null,
             string source = null,
             DateTime? from = null,
