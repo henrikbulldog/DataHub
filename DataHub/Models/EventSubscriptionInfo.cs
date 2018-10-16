@@ -18,9 +18,9 @@ namespace DataHub.Entities
         public string Protocol { get; set; }
 
         /// <summary>
-        /// Valid message names
+        /// Link to valid message names
         /// </summary>
-        public string ValidMessageNames { get; set; }
+        public string MessageNamesLink { get; set; }
 
         /// <summary>
         /// Uri to client documentation

@@ -27,14 +27,17 @@ namespace DataHub
 {
     public class Startup
     {
-        public const string EVENT_HUB_PATH = "/event-hub";
+        public const string EVENT_HUB_PATH = "/events-hub";
+        public const string TIMESERIES_HUB_PATH = "/timeseries-hub";
+        private ILogger logger;
+        private IConfiguration configuration;
 
-        public Startup(IConfiguration configuration)
+
+        public Startup(IConfiguration configuration, ILoggerFactory loggerFactory)
         {
-            Configuration = configuration;
+            this.configuration = configuration;
+            logger = loggerFactory.CreateLogger<Startup>();
         }
-
-        public IConfiguration Configuration { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
@@ -53,7 +56,8 @@ namespace DataHub
 #else
                         @"Server=(localdb)\mssqllocaldb;Database=EFProviders.InMemory;Trusted_Connection=True;ConnectRetryCount=0",
 #endif
-                    sp.GetService<IEntitiesRepository>());
+                    sp.GetService<IEntitiesRepository>(),
+                    logger);
                     context.Database.EnsureCreated();
                     Seed(context);
                     return context;
@@ -73,29 +77,29 @@ namespace DataHub
                 sp => new AzureBlobRepository(CloudStorageAccount
                     .Parse(Environment.GetEnvironmentVariable("Azure.Storage.Connection"))
                     .CreateCloudBlobClient()
-                    .GetContainerReference(Configuration["Azure.Blob:Container"])));
+                    .GetContainerReference(configuration["Azure.Blob:Container"])));
 #else   
             services.AddScoped(
                 typeof(IBlobRepository),
                 sp => new BlobRepository());
 #endif
 
-//#if RELEASE
+#if RELEASE
             services.AddScoped(
                 typeof(ITimeseriesRepository),
                 sp => new InfluxDBRepository(
-                    Configuration["InfluxDB:Uri"],
-                    Configuration["InfluxDB:Database"],
-                    Configuration["InfluxDB:Measurement"],
+                    configuration["InfluxDB:Uri"],
+                    configuration["InfluxDB:Database"],
+                    configuration["InfluxDB:Measurement"],
                     Environment.GetEnvironmentVariable("InfluxDB.Username"),
                     Environment.GetEnvironmentVariable("InfluxDB.Password")));
-//#else
-//            services.AddScoped(
-//                typeof(ITimeseriesRepository),
-//                sp => new InfluxDBRepository("http://localhost:8086",
-//                    Configuration["InfluxDB:Database"],
-//                    Configuration["InfluxDB:Measurement"]));
-//#endif
+#else
+            services.AddScoped(
+                typeof(ITimeseriesRepository),
+                sp => new InfluxDBRepository("http://localhost:8086",
+                    configuration["InfluxDB:Database"],
+                    configuration["InfluxDB:Measurement"]));
+#endif
 
             services.AddScoped(
                 typeof(IQueryableRepository<TimeseriesMetadata>),
@@ -126,7 +130,7 @@ namespace DataHub
                 builder.AllowAnyMethod()
                     .AllowAnyHeader()
                     .AllowCredentials()
-                    .AllowAnyOrigin();
+                    .WithOrigins("http://localhost:4200", "https://*.azurewebsites.net");
             }));
 
             services.AddSignalR();
@@ -155,13 +159,18 @@ namespace DataHub
             app.UseSignalR(routes =>
             {
                 routes.MapHub<EventHub>(EVENT_HUB_PATH);
+                routes.MapHub<TimeseriesHub>(TIMESERIES_HUB_PATH);
             });
 
 #if RELEASE
             app.ApplyUserKeyValidation();
 #endif
 
+#if RELEASE
             loggerFactory.AddApplicationInsights(app.ApplicationServices, Microsoft.Extensions.Logging.LogLevel.Warning);
+#else
+            loggerFactory.AddConsole();
+#endif
 
             app.UseMvc();
             app.UseSwagger();

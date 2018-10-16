@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Community.OData.Linq;
 using Community.OData.Linq.AspNetCore;
 using DataHub.Entities;
+using DataHub.Models.Extensions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -61,7 +62,8 @@ namespace DataHub.Controllers
                 var files = await Task.FromResult(filesRepository
                     .AsQueryable()
                     .OData()
-                    .ApplyQueryOptionsWithoutSelectExpand(oDataQueryOptions)
+                    .ApplyQueryOptions(oDataQueryOptions)
+                    .Select(e => e.ToDictionary().ToObject<FileInfo>())
                     .ToList());
                 foreach (var file in files)
                 {

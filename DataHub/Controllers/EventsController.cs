@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Community.OData.Linq;
 using Community.OData.Linq.AspNetCore;
 using DataHub.Hubs;
+using DataHub.Models.Extensions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
@@ -89,7 +90,8 @@ namespace DataHub.Controllers
                 var events = await Task.FromResult(eventsRepository
                     .AsQueryable()
                     .OData()
-                    .ApplyQueryOptionsWithoutSelectExpand(oDataQueryOptions)
+                    .ApplyQueryOptions(oDataQueryOptions)
+                    .Select(e => e.ToDictionary().ToObject<Entities.EventInfo>())
                     .ToList());
                 return Ok(new Entities.EventListResponse
                 {
@@ -147,20 +149,15 @@ namespace DataHub.Controllers
         /// <returns></returns>
         [HttpGet("/events/subscriptionInfo")]
         [ProducesResponseType(typeof(Entities.EventSubscriptionInfo), 200)]
-        public async virtual Task<IActionResult> GetEventSubscriptionInfo()
+        public virtual IActionResult GetEventSubscriptionInfo()
         {
             try
             {
-                var eventNames = await eventsRepository.AsQueryable()
-                    .Select(e => e.Name)
-                    .Distinct()
-                    .ToListAsync();
-
                 return Ok(new Entities.EventSubscriptionInfo
                 {
                     ConnectionUri = this.BuildLink(Startup.EVENT_HUB_PATH),
                     Protocol = "SignalR",
-                    ValidMessageNames = string.Join(',', eventNames),
+                    MessageNamesLink = this.BuildLink($"/events?$top=100&$select=name"),
                     ClientDocumentationUri = "https://docs.microsoft.com/en-us/aspnet/core/signalr/clients?view=aspnetcore-2.1"
                 });
             }

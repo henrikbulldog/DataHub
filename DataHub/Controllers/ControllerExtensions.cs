@@ -20,13 +20,15 @@ namespace DataHub.Controllers
           this Controller controller,
           string path = null)
         {
-            return new UriBuilder(
-             controller.Request.Scheme,
-             controller.Request.Host.Host,
-             controller.Request.Host.Port ?? 80,
-             string.IsNullOrWhiteSpace(path) ? controller.Request.Path.Value : path)
-              .Uri
-              .ToString();
+            var builder = new UriBuilder();
+            builder.Scheme = controller.Request.Scheme;
+            builder.Host = controller.Request.Host.Host;
+            if(controller.Request.Host.Port.HasValue)
+            {
+                builder.Port = controller.Request.Host.Port.Value;
+            }
+            builder.Path = string.IsNullOrWhiteSpace(path) ? controller.Request.Path.Value : path;
+            return builder.Uri.ToString();
         }
 
         public static async Task WriteNotFound(

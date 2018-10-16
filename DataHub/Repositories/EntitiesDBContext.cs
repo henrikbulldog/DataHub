@@ -1,6 +1,7 @@
 ﻿using DataHub.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
 
 namespace DataHub.Repositories
 {
@@ -35,6 +36,9 @@ namespace DataHub.Repositories
             catch { }
         }
 
+        public static readonly LoggerFactory ConsoleLoggerFactory
+            = new LoggerFactory(new[] { new ConsoleLoggerProvider((_, __) => true, true) });
+
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             if (!optionsBuilder.IsConfigured)
@@ -42,12 +46,12 @@ namespace DataHub.Repositories
                 optionsBuilder.UseSqlServer(connectionString);
             }
 
-            //if (Logger != null)
-            //{
-            //  var lf = new LoggerFactory();
-            //  lf.AddProvider(new TestLoggerProvider(Logger));
-            //  optionsBuilder.UseLoggerFactory(lf);
-            //}
+#if DEBUG
+            if (Logger != null)
+            {
+                optionsBuilder.UseLoggerFactory(ConsoleLoggerFactory);
+            }
+#endif
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

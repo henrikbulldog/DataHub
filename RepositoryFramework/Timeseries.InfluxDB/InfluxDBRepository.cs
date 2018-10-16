@@ -222,7 +222,7 @@ namespace RepositoryFramework.Timeseries.InfluxDB
                 where += $"time <= '{to.Value.ToString("o")}'";
             }
 
-            AddTagsFilter(tags, where);
+            where = AddTagsFilter(tags, where);
 
             string interval = GetTimeIntervalAsString(timeInterval);
             string groupBy = " group by \"Tag\", \"Source\"";

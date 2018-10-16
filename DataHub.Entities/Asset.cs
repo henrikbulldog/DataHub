@@ -13,8 +13,8 @@ namespace DataHub.Entities
         public string Description { get; set; }
         public string SerialNumber { get; set; }
         public string Manufacturer { get; set; }
-        public DateTime Created { get; set; }
-        public DateTime Updated { get; set; }
+        public DateTime? Created { get; set; }
+        public DateTime? Updated { get; set; }
         public IEnumerable<TimeseriesMetadata> TimeSeries { get; set; }
         public IEnumerable<FileLink> FileLinks { get; set; }
         public IEnumerable<Asset> Assets { get; set; }

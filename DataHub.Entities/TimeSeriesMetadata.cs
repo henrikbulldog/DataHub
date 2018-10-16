@@ -35,11 +35,11 @@ namespace DataHub.Entities
         /// <summary>
         /// Created
         /// </summary>
-        public DateTime Created { get; set; }
+        public DateTime? Created { get; set; }
 
         /// <summary>
         /// Updated
         /// </summary>
-        public DateTime Updated { get; set; }
+        public DateTime? Updated { get; set; }
     }
 }

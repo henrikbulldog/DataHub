@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using RepositoryFramework.EntityFramework;
 using System;
+using DataHub.Models.Extensions;
 
 namespace DataHub.Controllers
 {
@@ -63,7 +64,8 @@ namespace DataHub.Controllers
                 var entities = await Task.FromResult(entitiesRepository
                     .AsQueryable()
                     .OData()
-                    .ApplyQueryOptionsWithoutSelectExpand(oDataQueryOptions)
+                    .ApplyQueryOptions(oDataQueryOptions)
+                    .Select(e => e.ToDictionary().ToObject<Entity>())
                     .ToList());
 
                 return Ok(new EntityListResponse
@@ -73,7 +75,7 @@ namespace DataHub.Controllers
                         entities, 
                         top, 
                         skip, 
-                        async () => await entitiesRepository.AsQueryable().LongCountAsync())
+                        async () => await Task.FromResult(entitiesRepository.AsQueryable().LongCount()))
                 });
             }
             catch (Exception e)
@@ -178,7 +180,8 @@ namespace DataHub.Controllers
             var repo = new EntityFrameworkRepository<T>(dbContext);
             return await Task.FromResult(repo.AsQueryable()
                 .OData()
-                .ApplyQueryOptionsWithoutSelectExpand(queryOptions)
+                .ApplyQueryOptions(queryOptions)
+                .Select(e => e.ToDictionary().ToObject(typeof(T)))
                 .ToList());
         }
 

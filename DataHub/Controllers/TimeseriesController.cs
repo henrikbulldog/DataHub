@@ -2,6 +2,7 @@
 using Community.OData.Linq.AspNetCore;
 using DataHub.Entities;
 using DataHub.Hubs;
+using DataHub.Models.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +10,7 @@ using Newtonsoft.Json;
 using RepositoryFramework.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.Dynamic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -21,16 +23,16 @@ namespace DataHub.Controllers
     {
         private ITimeseriesRepository timeseriesRepository;
         private IQueryableRepository<TimeseriesMetadata> timeseriesMetadataRepository;
-        private IHubContext<EventHub> eventHub;
+        private IHubContext<TimeseriesHub> timerseriesHub;
 
         public TimeseriesController(
             ITimeseriesRepository timeseriesRepository,
             IQueryableRepository<TimeseriesMetadata> timeseriesMetadataRepository,
-            IHubContext<EventHub> eventHub)
+            IHubContext<TimeseriesHub> timerseriesHub)
         {
             this.timeseriesRepository = timeseriesRepository;
             this.timeseriesMetadataRepository = timeseriesMetadataRepository;
-            this.eventHub = eventHub;
+            this.timerseriesHub = timerseriesHub;
         }
 
         /// <summary>
@@ -104,14 +106,16 @@ namespace DataHub.Controllers
                 var entities = await Task.FromResult(timeseriesMetadataRepository
                     .AsQueryable()
                     .OData()
-                    .ApplyQueryOptionsWithoutSelectExpand(oDataQueryOptions)
+                    .ApplyQueryOptions(oDataQueryOptions)
+                    .Select(e => e.ToDictionary().ToObject<TimeseriesMetadata>())
                     .ToList());
+
                 return Ok(new TimeseriesMetadataListResponse
                 {
                     Data = await PagedListData<TimeseriesMetadata>.CreateAsync(
-                        entities, 
-                        top, 
-                        skip, 
+                        entities,
+                        top,
+                        skip,
                         async () => await timeseriesMetadataRepository.AsQueryable().LongCountAsync())
                 });
             }
@@ -206,20 +210,15 @@ namespace DataHub.Controllers
         /// <returns></returns>
         [HttpGet("/timeseries/subscriptionInfo")]
         [ProducesResponseType(typeof(Entities.EventSubscriptionInfo), 200)]
-        public async virtual Task<IActionResult> GetEventSubscriptionInfo()
+        public virtual IActionResult GetEventSubscriptionInfo()
         {
             try
             {
-                var tsNames = await timeseriesMetadataRepository.AsQueryable()
-                    .Select(e => e.Name)
-                    .Distinct()
-                    .ToListAsync();
-
                 return Ok(new Entities.EventSubscriptionInfo
                 {
-                    ConnectionUri = this.BuildLink(Startup.EVENT_HUB_PATH),
+                    ConnectionUri = this.BuildLink(Startup.TIMESERIES_HUB_PATH),
                     Protocol = "SignalR",
-                    ValidMessageNames = string.Join(',', tsNames),
+                    MessageNamesLink = this.BuildLink($"/timeseries/metadata?$top=100&$select=name"),
                     ClientDocumentationUri = "https://docs.microsoft.com/en-us/aspnet/core/signalr/clients?view=aspnetcore-2.1"
                 });
             }
@@ -301,7 +300,7 @@ namespace DataHub.Controllers
         }
         private async Task PublishEventAsync(string messageType, string message)
         {
-            await eventHub.Clients.All.SendAsync(messageType, message);
+            await timerseriesHub.Clients.All.SendAsync(messageType, message);
         }
     }
 }

@@ -32,7 +32,7 @@ namespace DataHub.Entities
         /// <summary>
         /// Event creation time
         /// </summary>
-        public DateTime Time { get; set; }
+        public DateTime? Time { get; set; }
 
         /// <summary>
         /// Event payload
