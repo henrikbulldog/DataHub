@@ -29,7 +29,6 @@ namespace RepositoryFramework.Timeseries.InfluxDB
         {
             get
             {
-                VerifyConnection();
                 if(metricsCollector == null)
                 {
                     metricsCollector = Metrics.Collector = new CollectorConfiguration()
@@ -57,22 +56,6 @@ namespace RepositoryFramework.Timeseries.InfluxDB
             {
                 throw new Exception(message, exception);
             });
-        }
-
-        public void VerifyConnection()
-        {
-            string svcCredentials = Convert.ToBase64String(ASCIIEncoding.ASCII.GetBytes(username + ":" + password));
-            var readRequest = new RestRequest("query", Method.GET)
-                .AddQueryParameter("q", $"show measurements")
-                .AddQueryParameter("db", database)
-                .AddHeader("Authorization", "Basic " + svcCredentials);
-            var task = CallApiAsync(readRequest);
-            task.WaitSync();
-            var r = task.Result;
-            if (r.StatusCode != System.Net.HttpStatusCode.OK)
-            {
-                throw new Exception(r.StatusDescription);
-            }
         }
 
         public void Create(Interfaces.TimeseriesData data)

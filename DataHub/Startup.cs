@@ -130,7 +130,7 @@ namespace DataHub
                 builder.AllowAnyMethod()
                     .AllowAnyHeader()
                     .AllowCredentials()
-                    .WithOrigins("http://localhost:4200", "https://*.azurewebsites.net");
+                    .WithOrigins("http://localhost:4200", "https://data-client.azurewebsites.net");
             }));
 
             services.AddSignalR();
