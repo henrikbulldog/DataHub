@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 using RepositoryFramework.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -194,7 +195,12 @@ namespace DataHub.Controllers
                 await timeseriesRepository.CreateManyAsync(data);
                 foreach (var ts in data)
                 {
-                    await PublishEventAsync(ts.Tag, JsonConvert.SerializeObject(ts));
+                    await PublishEventAsync(ts.Tag, JsonConvert.SerializeObject(
+                        ts,
+                        new JsonSerializerSettings
+                        {
+                            ContractResolver = new CamelCasePropertyNamesContractResolver()
+                        }));
                 }
                 return Created(this.BuildLink(), null);
             }

@@ -159,6 +159,7 @@ namespace DataHub.Controllers
                 {
                     Response.StatusCode = StatusCodes.Status404NotFound;
                     await Response.WriteAsync($"No file found with id {id}");
+                    return;
                 }
 
                 var blob = await blobRepository.GetByIdAsync(id);
@@ -166,6 +167,7 @@ namespace DataHub.Controllers
                 {
                     Response.StatusCode = StatusCodes.Status404NotFound;
                     await Response.WriteAsync($"No payload found for file id {id}");
+                    return;
                 }
 
                 Response.Headers.Add("content-type", "application/octet-stream");

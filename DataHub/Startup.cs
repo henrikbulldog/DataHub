@@ -19,7 +19,6 @@ using Swashbuckle.AspNetCore.Swagger;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 
@@ -85,20 +84,24 @@ namespace DataHub
 #endif
 
 #if RELEASE
-            services.AddScoped(
+            services.AddSingleton(
                 typeof(ITimeseriesRepository),
                 sp => new InfluxDBRepository(
                     configuration["InfluxDB:Uri"],
                     configuration["InfluxDB:Database"],
                     configuration["InfluxDB:Measurement"],
                     Environment.GetEnvironmentVariable("InfluxDB.Username"),
-                    Environment.GetEnvironmentVariable("InfluxDB.Password")));
+                    Environment.GetEnvironmentVariable("InfluxDB.Password"),
+                    (message, exception) => logger.LogError(message, exception)));
 #else
-            services.AddScoped(
+            services.AddSingleton(
                 typeof(ITimeseriesRepository),
                 sp => new InfluxDBRepository("http://localhost:8086",
                     configuration["InfluxDB:Database"],
-                    configuration["InfluxDB:Measurement"]));
+                    configuration["InfluxDB:Measurement"],
+                    null,
+                    null,
+                    (message, exception) => logger.LogError(message, exception)));
 #endif
 
             services.AddScoped(
@@ -130,7 +133,7 @@ namespace DataHub
                 builder.AllowAnyMethod()
                     .AllowAnyHeader()
                     .AllowCredentials()
-                    .WithOrigins("http://localhost:4200", "https://data-client.azurewebsites.net");
+                    .WithOrigins("http://localhost:4200", "https://datahub-client.azurewebsites.net");
             }));
 
             services.AddSignalR();
@@ -138,7 +141,7 @@ namespace DataHub
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(
-            IApplicationBuilder app, 
+            IApplicationBuilder app,
             IHostingEnvironment env,
             ILoggerFactory loggerFactory)
         {

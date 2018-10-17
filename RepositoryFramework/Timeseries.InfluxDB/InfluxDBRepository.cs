@@ -25,37 +25,27 @@ namespace RepositoryFramework.Timeseries.InfluxDB
         private string password;
         private MetricsCollector metricsCollector = null;
 
-        private MetricsCollector MetricsCollector
-        {
-            get
-            {
-                if(metricsCollector == null)
-                {
-                    metricsCollector = Metrics.Collector = new CollectorConfiguration()
-                        .Batch.AtInterval(TimeSpan.FromSeconds(2))
-                        .WriteTo.InfluxDB(uri, database, username, password)
-                        .CreateCollector();
-                }
-                return metricsCollector;
-            }
-        }
-
         public InfluxDBRepository(
             string uri, 
             string database, 
             string measurement, 
             string username = null, 
-            string password = null)
+            string password = null,
+            Action<string, Exception> errorHandler = null)
         {
             this.uri = uri;
             this.database = database;
             this.measurement = measurement;
             this.username = username;
             this.password = password;
-            CollectorLog.RegisterErrorHandler((message, exception) =>
+            metricsCollector = Metrics.Collector = new CollectorConfiguration()
+                .Batch.AtInterval(TimeSpan.FromSeconds(2))
+                .WriteTo.InfluxDB(uri, database, username, password)
+                .CreateCollector();
+            if (errorHandler != null)
             {
-                throw new Exception(message, exception);
-            });
+                CollectorLog.RegisterErrorHandler(errorHandler);
+            }
         }
 
         public void Create(Interfaces.TimeseriesData data)
@@ -72,7 +62,10 @@ namespace RepositoryFramework.Timeseries.InfluxDB
                 var tags = new Dictionary<string, string>();
                 tags.Add("Tag", data.Tag);
                 tags.Add("Source", data.Source);
-                MetricsCollector.Write(measurement, fields, tags, point.Timestamp);
+                lock (metricsCollector)
+                {
+                    metricsCollector.Write(measurement, fields, tags, point.Timestamp);
+                }
             }
         }
 
@@ -80,7 +73,6 @@ namespace RepositoryFramework.Timeseries.InfluxDB
         {
             await Task.Run(() => Create(data));
         }
-
 
         public void CreateMany(IEnumerable<TimeseriesData> data)
         {
@@ -175,9 +167,17 @@ namespace RepositoryFramework.Timeseries.InfluxDB
             return where;
         }
 
-        public IEnumerable<TimeseriesData> FindAggregate(IList<string> tags, TimeInterval timeInterval, IList<AggregationFunction> aggregationFunctions = null, string source = null, DateTime? from = null, DateTime? to = null)
+        public IEnumerable<TimeseriesData> FindAggregate(
+            IList<string> tags, 
+            TimeInterval timeInterval, 
+            IList<AggregationFunction> aggregationFunctions = null, 
+            string source = null, 
+            DateTime? from = null, 
+            DateTime? to = null)
         {
-            throw new NotImplementedException();
+            var task = FindAggregateAsync(tags, timeInterval, aggregationFunctions, source, from, to);
+            task.WaitSync();
+            return task.Result;
         }
 
         public async Task<IEnumerable<TimeseriesData>> FindAggregateAsync(
@@ -221,6 +221,11 @@ namespace RepositoryFramework.Timeseries.InfluxDB
                 .AddQueryParameter("db", database)
                 .AddHeader("Authorization", "Basic " + svcCredentials);
             var r = await CallApiAsync(readRequest);
+            if (!r.IsSuccessful)
+            {
+                throw new Exception(r.ErrorMessage);
+            }
+
             if (r.StatusCode != System.Net.HttpStatusCode.OK)
             {
                 throw new Exception(r.StatusDescription);
