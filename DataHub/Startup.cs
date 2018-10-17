@@ -2,6 +2,8 @@
 using DataHub.Hubs;
 using DataHub.Middleware;
 using DataHub.Repositories;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
@@ -108,6 +110,13 @@ namespace DataHub
                 typeof(IQueryableRepository<TimeseriesMetadata>),
                 sp => new EntityFrameworkRepository<TimeseriesMetadata>(sp.GetService<EntitiesDBContext>()));
 
+#if RELEASE
+            services.AddAuthentication(sharedOptions =>
+            {
+                sharedOptions.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+            })
+            .AddAzureAdBearer(options => configuration.Bind("AzureAd", options));
+#endif
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
 
             services.AddMvc().AddJsonOptions(options =>
@@ -126,6 +135,16 @@ namespace DataHub
                 c.IncludeXmlComments(filePath);
                 c.OperationFilter<FileOperationFilter>();
                 c.CustomSchemaIds(type => type.FriendlyId().Replace("[", "Of").Replace("]", ""));
+                c.AddSecurityDefinition("oauth2", new OAuth2Scheme
+                {
+                    Type = "oauth2",
+                    Flow = "implicit",
+                    AuthorizationUrl = "https://login.microsoftonline.com/93975044-56ed-42b3-a1f1-0b5c1dc2e04a/oauth2/authorize"
+                });
+                c.AddSecurityRequirement(new Dictionary<string, IEnumerable<string>>
+                {
+                    { "oauth2", new[] { "dummy" } }
+                });
             });
 
             services.AddCors(o => o.AddPolicy("CorsPolicy", builder =>
@@ -156,6 +175,12 @@ namespace DataHub
             {
                 app.UseDeveloperExceptionPage();
             }
+            else
+            {
+                app.UseHsts();
+            }
+
+            app.UseHttpsRedirection();
 
             app.UseCors("CorsPolicy");
 
@@ -166,7 +191,7 @@ namespace DataHub
             });
 
 #if RELEASE
-            app.ApplyUserKeyValidation();
+            app.UseAuthentication();
 #endif
 
 #if RELEASE
@@ -180,6 +205,11 @@ namespace DataHub
             app.UseSwaggerUI(c =>
             {
                 c.SwaggerEndpoint("/swagger/v1/swagger.json", "Data Hub");
+                c.OAuthClientId("35978533-d74f-46d4-85e6-70c71bc262e0");
+                c.OAuthAdditionalQueryStringParams(new Dictionary<string, string>()
+                    {
+                       { "resource","35978533-d74f-46d4-85e6-70c71bc262e0"}
+                    });
             });
         }
 

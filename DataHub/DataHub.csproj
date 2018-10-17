@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netcoreapp2.1</TargetFramework>
     <UserSecretsId>8338040d-3ac9-4c18-9a3e-4bf9367a3eb3</UserSecretsId>
+    <WebProject_DirectoryAccessLevelKey>0</WebProject_DirectoryAccessLevelKey>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -40,6 +41,10 @@
   <ItemGroup>
     <ProjectReference Include="..\DataHub.Entities\DataHub.Entities.csproj" />
     <ProjectReference Include="..\RepositoryFramework\RepositoryFramework.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <WCFMetadata Include="Connected Services" />
   </ItemGroup>
 
 </Project>

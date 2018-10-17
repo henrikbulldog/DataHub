@@ -35,16 +35,6 @@ namespace DataHub
 
                 operation.Consumes.Add("multipart/form-data");
             }
-#if RELEASE
-            operation.Parameters.Add(new NonBodyParameter
-            {
-                Name = "api-key",
-                In = "header",
-                Type = "string",
-                Format = "password",
-                Required = true
-            });
-#endif
         }
     }
 }

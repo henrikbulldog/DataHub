@@ -17,6 +17,9 @@ using RepositoryFramework.Interfaces;
 namespace DataHub.Controllers
 {
     [Route("events")]
+#if RELEASE
+    [Microsoft.AspNetCore.Authorization.Authorize]
+#endif
     public class EventsController : Controller
     {
         private IQueryableRepository<Entities.EventInfo> eventsRepository;

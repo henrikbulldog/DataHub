@@ -16,6 +16,9 @@ using DataHub.Models.Extensions;
 namespace DataHub.Controllers
 {
     [Route("entities")]
+#if RELEASE
+    [Microsoft.AspNetCore.Authorization.Authorize]
+#endif
     public class EntitiesController : Controller
     {
         private IEntitiesRepository entitiesRepository;

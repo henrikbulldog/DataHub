@@ -16,7 +16,7 @@ namespace DataHub.Entities
         public DateTime? Created { get; set; }
         public DateTime? Updated { get; set; }
         public IEnumerable<TimeseriesMetadata> TimeSeries { get; set; }
-        public IEnumerable<FileLink> FileLinks { get; set; }
+        public IEnumerable<FileInfo> Files { get; set; }
         public IEnumerable<Asset> Assets { get; set; }
     }
 }

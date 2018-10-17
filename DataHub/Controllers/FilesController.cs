@@ -15,6 +15,9 @@ using RepositoryFramework.Interfaces;
 namespace DataHub.Controllers
 {
     [Route("files")]
+#if RELEASE
+    [Microsoft.AspNetCore.Authorization.Authorize]
+#endif
     public class FilesController : Controller
     {
         private IQueryableRepository<Entities.FileInfo> filesRepository;

@@ -20,6 +20,10 @@ namespace DataHub.Controllers
 {
 
     [Route("timeseries")]
+
+#if RELEASE
+    [Microsoft.AspNetCore.Authorization.Authorize]
+#endif
     public class TimeseriesController : Controller
     {
         private ITimeseriesRepository timeseriesRepository;
