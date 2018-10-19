@@ -1,0 +1,83 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>DataHub.Entities</name>
+    </assembly>
+    <members>
+        <member name="T:DataHub.Entities.EventInfo">
+            <summary>
+            Event
+            </summary>
+        </member>
+        <member name="P:DataHub.Entities.EventInfo.Id">
+            <summary>
+            Primary key
+            </summary>
+        </member>
+        <member name="P:DataHub.Entities.EventInfo.Source">
+            <summary>
+            Originating data source
+            </summary>
+        </member>
+        <member name="P:DataHub.Entities.EventInfo.Name">
+            <summary>
+            Name of event
+            </summary>
+        </member>
+        <member name="P:DataHub.Entities.EventInfo.Severity">
+            <summary>
+            Severity of event
+            </summary>
+        </member>
+        <member name="P:DataHub.Entities.EventInfo.Time">
+            <summary>
+            Event creation time
+            </summary>
+        </member>
+        <member name="P:DataHub.Entities.EventInfo.Payload">
+            <summary>
+            Event payload
+            </summary>
+        </member>
+        <member name="T:DataHub.Entities.FileInfo">
+            <summary>
+            File information
+            </summary>
+        </member>
+        <member name="P:DataHub.Entities.TimeseriesMetadata.Id">
+            <summary>
+            Primary key
+            </summary>
+        </member>
+        <member name="P:DataHub.Entities.TimeseriesMetadata.Name">
+            <summary>
+            Time series name or tag
+            </summary>
+        </member>
+        <member name="P:DataHub.Entities.TimeseriesMetadata.Source">
+            <summary>
+            Originating data source
+            </summary>
+        </member>
+        <member name="P:DataHub.Entities.TimeseriesMetadata.Description">
+            <summary>
+            Description
+            </summary>
+        </member>
+        <member name="P:DataHub.Entities.TimeseriesMetadata.Units">
+            <summary>
+            Units
+            </summary>
+        </member>
+        <member name="P:DataHub.Entities.TimeseriesMetadata.Created">
+            <summary>
+            Created
+            </summary>
+        </member>
+        <member name="P:DataHub.Entities.TimeseriesMetadata.Updated">
+            <summary>
+            Updated
+            </summary>
+        </member>
+    </members>
+</doc>

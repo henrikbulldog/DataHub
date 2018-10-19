@@ -55,12 +55,11 @@ namespace DataHub
 #if RELEASE
                         Environment.GetEnvironmentVariable("Azure.Sql.Connection"),
 #else
-                        @"Server=(localdb)\mssqllocaldb;Database=EFProviders.InMemory;Trusted_Connection=True;ConnectRetryCount=0",
+                    @"Server=localhost;Database=NanoDataHub;Trusted_Connection=True;ConnectRetryCount=0",
+                    //@"Server=(localdb)\mssqllocaldb;Database=EFProviders.InMemory;Trusted_Connection=True;ConnectRetryCount=0",
 #endif
                     sp.GetService<IEntitiesRepository>(),
                     logger);
-                    context.Database.EnsureCreated();
-                    Seed(context);
                     return context;
                 });
 
@@ -135,16 +134,18 @@ namespace DataHub
                 c.IncludeXmlComments(filePath);
                 c.OperationFilter<FileOperationFilter>();
                 c.CustomSchemaIds(type => type.FriendlyId().Replace("[", "Of").Replace("]", ""));
+#if RELEASE
                 c.AddSecurityDefinition("oauth2", new OAuth2Scheme
                 {
                     Type = "oauth2",
                     Flow = "implicit",
-                    AuthorizationUrl = "https://login.microsoftonline.com/93975044-56ed-42b3-a1f1-0b5c1dc2e04a/oauth2/authorize"
+                    AuthorizationUrl = configuration["AzureAd:Instance"] + configuration["AzureAd:TenantId"] + "/oauth2/authorize"
                 });
                 c.AddSecurityRequirement(new Dictionary<string, IEnumerable<string>>
                 {
                     { "oauth2", new[] { "dummy" } }
                 });
+#endif
             });
 
             services.AddCors(o => o.AddPolicy("CorsPolicy", builder =>
@@ -205,11 +206,13 @@ namespace DataHub
             app.UseSwaggerUI(c =>
             {
                 c.SwaggerEndpoint("/swagger/v1/swagger.json", "Data Hub");
-                c.OAuthClientId("35978533-d74f-46d4-85e6-70c71bc262e0");
+#if RELEASE
+                c.OAuthClientId(configuration["AzureAd:ClientId"]);
                 c.OAuthAdditionalQueryStringParams(new Dictionary<string, string>()
                     {
-                       { "resource","35978533-d74f-46d4-85e6-70c71bc262e0"}
+                       { "resource", configuration["AzureAd:ClientId"] }
                     });
+#endif
             });
         }
 
@@ -217,20 +220,29 @@ namespace DataHub
         {
             if (dbContext.Set<Entities.Asset>().Count() == 0)
             {
-                var tag1 = new TimeseriesMetadata
+                var timeseriesMetadata1 = new TimeseriesMetadata
                 {
                     Name = "ABC123",
                     Description = "Some tag",
                     Units = "Pa"
                 };
-                var tag2 = new TimeseriesMetadata
+                var timeseriesMetadata2 = new TimeseriesMetadata
                 {
                     Name = "ABC234",
                     Description = "Some other tag",
                     Units = "Pa"
                 };
-                dbContext.Set<TimeseriesMetadata>().Add(tag1);
-                dbContext.Set<TimeseriesMetadata>().Add(tag2);
+                dbContext.Set<TimeseriesMetadata>().Add(timeseriesMetadata1);
+                dbContext.Set<TimeseriesMetadata>().Add(timeseriesMetadata2);
+                dbContext.Set<TimeseriesMetadata>().Add(new TimeseriesMetadata { Name = "Orphan" });
+                dbContext.Set<TimeseriesMetadata>().Add(new TimeseriesMetadata
+                {
+                    Name = "Parent",
+                    TimeSeries = new List<TimeseriesMetadata>
+                    {
+                        new TimeseriesMetadata { Name = "Child" }
+                    }
+                });
 
                 dbContext.Set<Entities.EventInfo>()
                     .Add(new Entities.EventInfo
@@ -249,24 +261,24 @@ namespace DataHub
                         Name = "Type"
                     });
 
-                dbContext.Set<Entities.FileInfo>().Add(
-                    new Entities.FileInfo
-                    {
-                        Entity = "SensorData",
-                        Format = "CSV",
-                        Filename = "ABC123.CSV",
-                        Id = "1",
-                        Source = "Hist"
-                    });
-                dbContext.Set<Entities.FileInfo>().Add(
-                    new Entities.FileInfo
-                    {
-                        Entity = "SensorData",
-                        Format = "CSV",
-                        Filename = "ABC124.CSV",
-                        Id = "2",
-                        Source = "Hist"
-                    });
+                var file1 = new Entities.FileInfo
+                {
+                    Entity = "SensorData",
+                    Format = "CSV",
+                    Filename = "ABC123.CSV",
+                    Id = "1",
+                    Source = "Hist"
+                };
+                dbContext.Set<Entities.FileInfo>().Add(file1);
+                var file2 = new Entities.FileInfo
+                {
+                    Entity = "SensorData",
+                    Format = "CSV",
+                    Filename = "ABC124.CSV",
+                    Id = "2",
+                    Source = "Hist"
+                };
+                dbContext.Set<Entities.FileInfo>().Add(file2);
 
                 dbContext.Set<Asset>().Add(
                     new Asset
@@ -274,49 +286,62 @@ namespace DataHub
                         Id = "1",
                         Tag = "Site 1",
                         Description = "Site 1",
+                        Files = new List<Entities.FileInfo> { file1, file2 },
+                        Tags = new List<AssetTag>
+                        {
+                            new AssetTag
+                            {
+                                Id = "1",
+                                Name = "key1",
+                                Value = "value1"
+                            },
+                            new AssetTag
+                            {
+                                Id = "2",
+                                Name = "key2",
+                                Value = "value3"
+                            }
+                        },
+                        TimeSeries = new List<TimeseriesMetadata> { timeseriesMetadata1 },
                         Assets = new List<Asset>
                         {
-                        new Asset
-                        {
-                            Id = "2",
-                            ParentId = "1",
-                            Description = "Drilling equipment and systems",
-                            Tag = "3",
-                            Assets = new List<Asset>
+                            new Asset
                             {
-                                new Asset
+                                Id = "2",
+                                Description = "Drilling equipment and systems",
+                                Tag = "3",
+                                Assets = new List<Asset>
                                 {
-                                    Id = "3",
-                                    ParentId = "2",
-                                    Description = "Mud supply",
-                                    Tag = "325",
-                                    Assets = new List<Asset>
+                                    new Asset
                                     {
-                                        new Asset
+                                        Id = "3",
+                                        Description = "Mud supply",
+                                        Tag = "325",
+                                        Assets = new List<Asset>
                                         {
-                                            Id = "4",
-                                            ParentId = "3",
-                                            Tag = "325-G1",
-                                            Description = "Mud pump no.1",
-                                            Manufacturer = "Some producer",
-                                            SerialNumber = "1234568790",
-                                            TimeSeries = new List<TimeseriesMetadata> { tag1 }
-                                        },
-                                         new Asset
-                                        {
-                                            Id = "5",
-                                            ParentId = "3",
-                                            Description = "Mud pump no.2",
-                                            Tag = "325-G2",
-                                            Manufacturer = "Some other producer",
-                                            SerialNumber = "0987654321",
-                                            TimeSeries = new List<TimeseriesMetadata> { tag2 },
+                                            new Asset
+                                            {
+                                                Id = "4",
+                                                Tag = "325-G1",
+                                                Description = "Mud pump no.1",
+                                                Manufacturer = "Some producer",
+                                                SerialNumber = "1234568790",
+                                                TimeSeries = new List<TimeseriesMetadata> { timeseriesMetadata1 }
+                                            },
+                                             new Asset
+                                            {
+                                                Id = "5",
+                                                Description = "Mud pump no.2",
+                                                Tag = "325-G2",
+                                                Manufacturer = "Some other producer",
+                                                SerialNumber = "0987654321",
+                                                TimeSeries = new List<TimeseriesMetadata> { timeseriesMetadata2 },
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
-                    }
                     });
             }
 

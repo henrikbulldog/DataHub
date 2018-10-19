@@ -12,6 +12,10 @@ namespace DataHub.Entities
         /// </summary>
         public string Id { get; set; }
 
+        public string AssetId { get; set; }
+
+        public string ParentId { get; set; }
+
         /// <summary>
         /// Time series name or tag
         /// </summary>
@@ -41,5 +45,7 @@ namespace DataHub.Entities
         /// Updated
         /// </summary>
         public DateTime? Updated { get; set; }
+
+        public IEnumerable<TimeseriesMetadata> TimeSeries { get; set; }
     }
 }

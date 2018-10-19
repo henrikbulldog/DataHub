@@ -58,10 +58,49 @@ namespace DataHub.Repositories
         {
             base.OnModelCreating(modelBuilder);
 
-            foreach (var entity in entitiesRepository.Find())
+            modelBuilder.Entity<Asset>(asset =>
             {
-                modelBuilder.Entity(entity.ToType());
-            }
+                asset.HasKey(e => e.Id);
+                asset.Property(e => e.ParentId).IsRequired(false);
+                asset.HasOne<Asset>()
+                    .WithMany(e => e.Assets)
+                    .HasForeignKey(e => e.ParentId);
+            });
+
+            modelBuilder.Entity<AssetTag>(tag =>
+            {
+                tag.HasKey(e => e.Id);
+                tag.HasOne<Asset>()
+                .WithMany(e => e.Tags)
+                .HasForeignKey(e => e.AssetId);
+            });
+
+            modelBuilder.Entity<FileInfo>(file =>
+            {
+                file.HasKey(e => e.Id);
+                file.Property(e => e.AssetId).IsRequired(false);
+                file.HasOne<Asset>()
+                .WithMany(e => e.Files)
+                .HasForeignKey(e => e.AssetId);
+            });
+
+            modelBuilder.Entity<TimeseriesMetadata>(ts =>
+            {
+                ts.HasKey(e => e.Id);
+                ts.Property(e => e.AssetId).IsRequired(false);
+                ts.HasOne<Asset>()
+                .WithMany(e => e.TimeSeries)
+                .HasForeignKey(e => e.AssetId);
+                ts.Property(e => e.ParentId).IsRequired(false);
+                ts.HasOne<TimeseriesMetadata>()
+                    .WithMany(e => e.TimeSeries)
+                    .HasForeignKey(e => e.ParentId);
+            });
+
+            modelBuilder.Entity<EventInfo>(ts =>
+            {
+                ts.HasKey(e => e.Id);
+            });
         }
 
     }

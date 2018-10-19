@@ -10,14 +10,8 @@ namespace DataHub.Entities
     /// </summary>
     public class FileInfo
     {
-        /// <summary>
-        /// Primary key
-        /// </summary>
         public string Id { get; set; }
-
-        /// <summary>
-        /// 
-        /// </summary>
+        public string AssetId { get; set; }
         public string Source { get; set; }
         public string Entity { get; set; }
         public string Filename { get; set; }

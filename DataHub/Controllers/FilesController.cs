@@ -36,9 +36,7 @@ namespace DataHub.Controllers
         /// </summary>
         /// <param name="top">Show only the first n items, see [OData Paging - Top](http://docs.oasis-open.org/odata/odata/v4.0/odata-v4.0-part1-protocol.html#_Toc445374630)</param>
         /// <param name="skip">Skip the first n items, see [OData Paging - Skip](http://docs.oasis-open.org/odata/odata/v4.0/odata-v4.0-part1-protocol.html#_Toc445374631)</param>
-        /// <param name="select"> Select properties to be returned, see [OData Select](http://docs.oasis-open.org/odata/odata/v4.0/odata-v4.0-part1-protocol.html#_Toc445374620)</param>
         /// <param name="orderby">Order items by property values, see [OData Sorting](http://docs.oasis-open.org/odata/odata/v4.0/odata-v4.0-part1-protocol.html#_Toc445374629)</param>
-        /// <param name="expand">Expand object and collection properties, see [OData Expand](http://docs.oasis-open.org/odata/odata/v4.0/errata03/os/complete/part1-protocol/odata-v4.0-errata03-os-part1-protocol-complete.html#_System_Query_Option_6)</param>
         /// <param name="filter">Filter items by property values, see [OData Filtering](http://docs.oasis-open.org/odata/odata/v4.0/odata-v4.0-part1-protocol.html#_Toc445374625)</param>
         /// <returns></returns>
         [HttpGet()]
@@ -46,9 +44,7 @@ namespace DataHub.Controllers
         public async virtual Task<IActionResult> GetFilesAsync(
             [FromQuery(Name = "$top")] string top,
             [FromQuery(Name = "$skip")] string skip,
-            [FromQuery(Name = "$select")] string select,
             [FromQuery(Name = "$orderby")] string orderby,
-            [FromQuery(Name = "$expand")] string expand,
             [FromQuery(Name = "$filter")] string filter)
         {
             try
@@ -57,16 +53,13 @@ namespace DataHub.Controllers
                 {
                     Top = top,
                     Skip = skip,
-                    Select = select,
                     OrderBy = orderby,
-                    Expand = expand,
                     Filters = string.IsNullOrEmpty(filter) ? null : new List<string> { filter }
                 };
                 var files = await Task.FromResult(filesRepository
                     .AsQueryable()
                     .OData()
-                    .ApplyQueryOptions(oDataQueryOptions)
-                    .Select(e => e.ToDictionary().ToObject<FileInfo>())
+                    .ApplyQueryOptionsWithoutSelectExpand(oDataQueryOptions)
                     .ToList());
                 foreach (var file in files)
                 {
