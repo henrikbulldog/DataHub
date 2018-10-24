@@ -106,7 +106,7 @@ namespace DataHub
 #endif
 
             services.AddScoped(
-                typeof(IQueryableRepository<TimeseriesMetadata>),
+                typeof(IEntityFrameworkRepository<TimeseriesMetadata>),
                 sp => new EntityFrameworkRepository<TimeseriesMetadata>(sp.GetService<EntitiesDBContext>()));
 
 #if RELEASE
@@ -218,29 +218,45 @@ namespace DataHub
 
         private void Seed(EntitiesDBContext dbContext)
         {
-            if (dbContext.Set<Entities.Asset>().Count() == 0)
+            if (dbContext.Set<Asset>().Count() == 0)
             {
                 var timeseriesMetadata1 = new TimeseriesMetadata
                 {
+                    Source = "Seed",
+                    Id = "1",
                     Name = "ABC123",
                     Description = "Some tag",
                     Units = "Pa"
                 };
                 var timeseriesMetadata2 = new TimeseriesMetadata
                 {
+                    Source = "Seed",
+                    Id = "2",
                     Name = "ABC234",
                     Description = "Some other tag",
                     Units = "Pa"
                 };
                 dbContext.Set<TimeseriesMetadata>().Add(timeseriesMetadata1);
                 dbContext.Set<TimeseriesMetadata>().Add(timeseriesMetadata2);
-                dbContext.Set<TimeseriesMetadata>().Add(new TimeseriesMetadata { Name = "Orphan" });
                 dbContext.Set<TimeseriesMetadata>().Add(new TimeseriesMetadata
                 {
+                    Source = "Seed",
+                    Id = "3",
+                    Name = "Orphan"
+                });
+                dbContext.Set<TimeseriesMetadata>().Add(new TimeseriesMetadata
+                {
+                    Source = "Seed",
+                    Id = "4",
                     Name = "Parent",
-                    TimeSeries = new List<TimeseriesMetadata>
+                    Children = new List<TimeseriesMetadata>
                     {
-                        new TimeseriesMetadata { Name = "Child" }
+                        new TimeseriesMetadata
+                        {
+                            Source = "Seed",
+                            Id = "5",
+                            Name = "Child"
+                        }
                     }
                 });
 
@@ -248,7 +264,7 @@ namespace DataHub
                     .Add(new Entities.EventInfo
                     {
                         Id = "1",
-                        Source = "Source",
+                        Source = "Seed",
                         Time = DateTime.Now,
                         Name = "Type"
                     });
@@ -256,71 +272,75 @@ namespace DataHub
                     .Add(new Entities.EventInfo
                     {
                         Id = "2",
-                        Source = "Source",
+                        Source = "Seed",
                         Time = DateTime.Now,
                         Name = "Type"
                     });
 
                 var file1 = new Entities.FileInfo
                 {
-                    Entity = "SensorData",
-                    Format = "CSV",
-                    Filename = "ABC123.CSV",
+                    Source = "Seed",
                     Id = "1",
-                    Source = "Hist"
+                    Format = "CSV",
+                    Filename = "ABC123.CSV"
                 };
                 dbContext.Set<Entities.FileInfo>().Add(file1);
                 var file2 = new Entities.FileInfo
                 {
-                    Entity = "SensorData",
-                    Format = "CSV",
-                    Filename = "ABC124.CSV",
+                    Source = "Seed",
                     Id = "2",
-                    Source = "Hist"
+                    Format = "CSV",
+                    Filename = "ABC124.CSV"
                 };
                 dbContext.Set<Entities.FileInfo>().Add(file2);
 
                 dbContext.Set<Asset>().Add(
                     new Asset
                     {
+                        Source = "Seed",
                         Id = "1",
                         Tag = "Site 1",
                         Description = "Site 1",
-                        Files = new List<Entities.FileInfo> { file1, file2 },
+                        Files = new List<Entities.FileInfo> { file1 },
                         Tags = new List<AssetTag>
                         {
                             new AssetTag
                             {
+                                Source = "Seed",
                                 Id = "1",
                                 Name = "key1",
                                 Value = "value1"
                             },
                             new AssetTag
                             {
+                                Source = "Seed",
                                 Id = "2",
                                 Name = "key2",
                                 Value = "value3"
                             }
                         },
                         TimeSeries = new List<TimeseriesMetadata> { timeseriesMetadata1 },
-                        Assets = new List<Asset>
+                        Children = new List<Asset>
                         {
                             new Asset
                             {
+                                Source = "Seed",
                                 Id = "2",
                                 Description = "Drilling equipment and systems",
                                 Tag = "3",
-                                Assets = new List<Asset>
+                                Children = new List<Asset>
                                 {
                                     new Asset
                                     {
+                                        Source = "Seed",
                                         Id = "3",
                                         Description = "Mud supply",
                                         Tag = "325",
-                                        Assets = new List<Asset>
+                                        Children = new List<Asset>
                                         {
                                             new Asset
                                             {
+                                                Source = "Seed",
                                                 Id = "4",
                                                 Tag = "325-G1",
                                                 Description = "Mud pump no.1",
@@ -330,6 +350,7 @@ namespace DataHub
                                             },
                                              new Asset
                                             {
+                                                Source = "Seed",
                                                 Id = "5",
                                                 Description = "Mud pump no.2",
                                                 Tag = "325-G2",

@@ -8,22 +8,23 @@ namespace DataHub.Entities
     /// <summary>
     /// Event
     /// </summary>
-    public class EventInfo
+    public class EventInfo : IEntity
     {
-        /// <summary>
-        /// Primary key
-        /// </summary>
-        public string  Id { get; set; }
-
         /// <summary>
         /// Originating data source
         /// </summary>
         public string Source { get; set; }
 
         /// <summary>
+        /// Identifier
+        /// </summary>
+        public string Id { get; set; }
+
+        /// <summary>
         /// Name of event
         /// </summary>
         public string Name { get; set; }
+
         /// <summary>
         /// Severity of event
         /// </summary>

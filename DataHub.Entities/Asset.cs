@@ -6,11 +6,10 @@ using System.Text;
 
 namespace DataHub.Entities
 {
-    public class Asset
+    public class Asset : IComplexEntity
     {
-        public string Id { get; set; }
-        public string ParentId { get; set; }
         public string Source { get; set; }
+        public string Id { get; set; }
         public string Tag { get; set; }
         public string Description { get; set; }
         public string SerialNumber { get; set; }
@@ -20,6 +19,8 @@ namespace DataHub.Entities
         public IEnumerable<AssetTag> Tags { get; set; }
         public IEnumerable<TimeseriesMetadata> TimeSeries { get; set; }
         public IEnumerable<FileInfo> Files { get; set; }
-        public IEnumerable<Asset> Assets { get; set; }
+        public string ParentSource { get; set; }
+        public string ParentId { get; set; }
+        public IList<Asset> Children { get; set; }
     }
 }

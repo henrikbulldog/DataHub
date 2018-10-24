@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
+using RepositoryFramework.EntityFramework;
 using RepositoryFramework.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -27,12 +28,12 @@ namespace DataHub.Controllers
     public class TimeseriesController : Controller
     {
         private ITimeseriesRepository timeseriesRepository;
-        private IQueryableRepository<TimeseriesMetadata> timeseriesMetadataRepository;
+        private IEntityFrameworkRepository<TimeseriesMetadata> timeseriesMetadataRepository;
         private IHubContext<TimeseriesHub> timerseriesHub;
 
         public TimeseriesController(
             ITimeseriesRepository timeseriesRepository,
-            IQueryableRepository<TimeseriesMetadata> timeseriesMetadataRepository,
+            IEntityFrameworkRepository<TimeseriesMetadata> timeseriesMetadataRepository,
             IHubContext<TimeseriesHub> timerseriesHub)
         {
             this.timeseriesRepository = timeseriesRepository;
@@ -126,22 +127,26 @@ namespace DataHub.Controllers
         /// <summary>
         /// Get timeseries metadata by id
         /// </summary>
+        /// <param name="source">Originating data source</param>
         /// <param name="id">Timeseries metadata id</param>
         /// <returns></returns>
-        [HttpGet("metadata/{id}")]
+        [HttpGet("metadata/{source}/{id}")]
         [ProducesResponseType(typeof(Entities.EventInfo), 200)]
         [ProducesResponseType(404)]
-        public virtual async Task<IActionResult> GetMetadataByIdAsync([FromRoute]string id)
+        public virtual async Task<IActionResult> GetMetadataByIdAsync(
+            [FromRoute]string source, 
+            [FromRoute]string id)
         {
             try
             {
-                var e = await timeseriesMetadataRepository.GetByIdAsync(id);
-                if (e == null)
+                var entity = (await timeseriesMetadataRepository
+                    .FindAsync(e => e.Source == source && e.Id == id)).FirstOrDefault();
+                if (entity == null)
                 {
                     return NotFound($"No data found for timeseries metadata id {id}");
                 }
 
-                return Ok(e);
+                return Ok(entity);
             }
             catch (Exception e)
             {
@@ -149,20 +154,29 @@ namespace DataHub.Controllers
             }
         }
 
-        [HttpDelete("metadata/{id}")]
+        /// <summary>
+        /// Delete timeseries metadata
+        /// </summary>
+        /// <param name="source">Originating data source</param>
+        /// <param name="id">Timeseries metadata id</param>
+        /// <returns></returns>
+        [HttpDelete("metadata/{source}/{id}")]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
-        public virtual async Task<IActionResult> DeleteMetadataByIdAsync([FromRoute]string id)
+        public virtual async Task<IActionResult> DeleteMetadataByIdAsync(
+            [FromRoute]string source, 
+            [FromRoute]string id)
         {
             try
             {
-                var e = await timeseriesMetadataRepository.GetByIdAsync(id);
-                if (e == null)
+                var entity = (await timeseriesMetadataRepository
+                    .FindAsync(e => e.Source == source && e.Id == id)).FirstOrDefault();
+                if (entity == null)
                 {
                     return NotFound($"No data found for timeseries metadata id {id}");
                 }
 
-                await timeseriesMetadataRepository.DeleteAsync(e);
+                await timeseriesMetadataRepository.DeleteAsync(entity);
 
                 return NoContent();
             }

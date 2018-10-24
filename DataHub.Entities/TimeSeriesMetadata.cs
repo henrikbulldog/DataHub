@@ -5,26 +5,20 @@ using System.Threading.Tasks;
 
 namespace DataHub.Entities
 {
-    public class TimeseriesMetadata
+    public class TimeseriesMetadata : IComplexEntity
     {
-        /// <summary>
-        /// Primary key
-        /// </summary>
+        public string Source { get; set; }
         public string Id { get; set; }
 
         public string AssetId { get; set; }
 
+        public string ParentSource { get; set; }
         public string ParentId { get; set; }
 
         /// <summary>
         /// Time series name or tag
         /// </summary>
         public string Name { get; set; }
-
-        /// <summary>
-        /// Originating data source
-        /// </summary>
-        public string Source { get; set; }
 
         /// <summary>
         /// Description
@@ -46,6 +40,6 @@ namespace DataHub.Entities
         /// </summary>
         public DateTime? Updated { get; set; }
 
-        public IEnumerable<TimeseriesMetadata> TimeSeries { get; set; }
+        public IList<TimeseriesMetadata> Children { get; set; }
     }
 }

@@ -8,12 +8,11 @@ namespace DataHub.Entities
     /// <summary>
     /// File information
     /// </summary>
-    public class FileInfo
+    public class FileInfo : IEntity
     {
+        public string Source { get; set; }
         public string Id { get; set; }
         public string AssetId { get; set; }
-        public string Source { get; set; }
-        public string Entity { get; set; }
         public string Filename { get; set; }
         public string Format { get; set; }
         public string DownloadUri { get; set; }

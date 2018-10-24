@@ -182,7 +182,7 @@ namespace DataHub.Controllers
         /// Upload a file
         /// </summary>
         /// <param name="source">Originating data source</param>
-        /// <param name="entity">Data entity or type of document</param>
+        /// <param name="assetId">Asset Id</param>
         /// <param name="filename">File name</param>
         /// <param name="format">File format</param>
         /// <param name="fileData">File payload</param>
@@ -191,7 +191,7 @@ namespace DataHub.Controllers
         [ProducesResponseType(typeof(Entities.FileInfo), 201)]
         public virtual async Task<IActionResult> PostFileAsync(
             [FromForm]string source,
-            [FromForm]string entity,
+            [FromForm]string assetId,
             [FromForm]string filename,
             [FromForm]string format,
             [FromForm(Name = FileOperationFilter.FILE_PAYLOAD_PARM)] IFormFile fileData)
@@ -208,7 +208,7 @@ namespace DataHub.Controllers
                 {
                     Id = id,
                     Source = source,
-                    Entity = entity,
+                    AssetId = assetId,
                     Filename = filename,
                     Format = format,
                     DownloadUri = this.BuildLink($"/files/{id}/payload")

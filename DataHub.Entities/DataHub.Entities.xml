@@ -9,14 +9,14 @@
             Event
             </summary>
         </member>
-        <member name="P:DataHub.Entities.EventInfo.Id">
-            <summary>
-            Primary key
-            </summary>
-        </member>
         <member name="P:DataHub.Entities.EventInfo.Source">
             <summary>
             Originating data source
+            </summary>
+        </member>
+        <member name="P:DataHub.Entities.EventInfo.Id">
+            <summary>
+            Identifier
             </summary>
         </member>
         <member name="P:DataHub.Entities.EventInfo.Name">
@@ -44,19 +44,19 @@
             File information
             </summary>
         </member>
-        <member name="P:DataHub.Entities.TimeseriesMetadata.Id">
+        <member name="P:DataHub.Entities.IEntity.Source">
             <summary>
-            Primary key
+            Originating data source
+            </summary>
+        </member>
+        <member name="P:DataHub.Entities.IEntity.Id">
+            <summary>
+            Identifier
             </summary>
         </member>
         <member name="P:DataHub.Entities.TimeseriesMetadata.Name">
             <summary>
             Time series name or tag
-            </summary>
-        </member>
-        <member name="P:DataHub.Entities.TimeseriesMetadata.Source">
-            <summary>
-            Originating data source
             </summary>
         </member>
         <member name="P:DataHub.Entities.TimeseriesMetadata.Description">
