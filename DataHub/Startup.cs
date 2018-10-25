@@ -73,10 +73,11 @@ namespace DataHub
 #if RELEASE 
             services.AddScoped(
                 typeof(IBlobRepository),
-                sp => new AzureBlobRepository(CloudStorageAccount
-                    .Parse(Environment.GetEnvironmentVariable("Azure.Storage.Connection"))
-                    .CreateCloudBlobClient()
-                    .GetContainerReference(configuration["Azure.Blob:Container"])));
+                sp => new RepositoryFramework.Azure.Blob.AzureBlobRepository(
+                    Microsoft.WindowsAzure.Storage.CloudStorageAccount
+                        .Parse(Environment.GetEnvironmentVariable("Azure.Storage.Connection"))
+                        .CreateCloudBlobClient()
+                        .GetContainerReference(configuration["Azure.Blob:Container"])));
 #else   
             services.AddScoped(
                 typeof(IBlobRepository),
