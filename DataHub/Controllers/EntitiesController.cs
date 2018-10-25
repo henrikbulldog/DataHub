@@ -23,10 +23,10 @@ using System.Threading.Tasks;
 
 namespace DataHub.Controllers
 {
-    [Route("entities")]
-#if RELEASE
-    [Microsoft.AspNetCore.Authorization.Authorize]
+#if !NO_SECURITY
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = "Readers")]
 #endif
+    [Route("entities")]
     public class EntitiesController : Controller
     {
         private IEntitiesRepository entitiesRepository;
@@ -209,6 +209,9 @@ namespace DataHub.Controllers
         /// <param name="name">Data entity or type of document</param>
         /// <param name="items">List of entity data items</param>
         /// <returns></returns>
+#if !NO_SECURITY
+        [Microsoft.AspNetCore.Authorization.Authorize(Policy = "Writers")]
+#endif
         [HttpPost("{name}/data")]
         [ProducesResponseType(typeof(object), 201)]
         [ProducesResponseType(404)]
@@ -255,6 +258,9 @@ namespace DataHub.Controllers
         /// <param name="source">Originating data source</param>
         /// <param name="id">Id</param>
         /// <returns></returns>
+#if !NO_SECURITY
+        [Microsoft.AspNetCore.Authorization.Authorize(Policy = "Writers")]
+#endif
         [HttpGet("{name}/data/{source}/{id}")]
         [ProducesResponseType(typeof(object), 200)]
         [ProducesResponseType(404)]
@@ -305,6 +311,9 @@ namespace DataHub.Controllers
         /// <param name="id">Id</param>
         /// <param name="item">Data item to update</param>
         /// <returns></returns>
+#if !NO_SECURITY
+        [Microsoft.AspNetCore.Authorization.Authorize(Policy = "Writers")]
+#endif
         [HttpPut("{name}/data/{source}/{id}")]
         [ProducesResponseType(typeof(object), 200)]
         [ProducesResponseType(404)]
@@ -360,6 +369,9 @@ namespace DataHub.Controllers
         /// <param name="source">Originating data source</param>
         /// <param name="id">Id</param>
         /// <returns></returns>
+#if !NO_SECURITY
+        [Microsoft.AspNetCore.Authorization.Authorize(Policy = "Writers")]
+#endif
         [HttpDelete("{name}/data/{source}/{id}")]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
@@ -411,8 +423,11 @@ namespace DataHub.Controllers
         /// </summary>
         /// <param name="name">Data entity or type of document</param>
         /// <param name="fileData">File payload</param>
-        /// <param name="separator">Column separator character</param>
+        /// <param name="separator">Column separator character (use \t for tab)</param>
         /// <returns></returns>
+#if !NO_SECURITY
+        [Microsoft.AspNetCore.Authorization.Authorize(Policy = "Writers")]
+#endif
         [HttpPost("{name}/data/csv")]
         [ProducesResponseType(typeof(Entities.FileInfo), 201)]
         public virtual async Task<IActionResult> PostCsvFileAsync(

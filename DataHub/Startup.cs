@@ -10,10 +10,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.WindowsAzure.Storage;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
-using RepositoryFramework.Azure.Blob;
 using RepositoryFramework.EntityFramework;
 using RepositoryFramework.Interfaces;
 using RepositoryFramework.Timeseries.InfluxDB;
@@ -43,6 +41,8 @@ namespace DataHub
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddSingleton<IClaimsTransformation, ClaimsTransformer>();
+
             services.AddScoped(
                 typeof(IEntitiesRepository),
                 sp => new EntitiesRepository());
@@ -52,7 +52,7 @@ namespace DataHub
                 sp =>
                 {
                     var context = new EntitiesDBContext(
-#if RELEASE
+#if RELEASE 
                         Environment.GetEnvironmentVariable("Azure.Sql.Connection"),
 #else
                     @"Server=localhost;Database=NanoDataHub;Trusted_Connection=True;ConnectRetryCount=0",
@@ -70,7 +70,7 @@ namespace DataHub
                 typeof(IQueryableRepository<EventInfo>),
                 sp => new EntityFrameworkRepository<EventInfo>(sp.GetService<EntitiesDBContext>()));
 
-#if RELEASE
+#if RELEASE 
             services.AddScoped(
                 typeof(IBlobRepository),
                 sp => new AzureBlobRepository(CloudStorageAccount
@@ -83,7 +83,7 @@ namespace DataHub
                 sp => new BlobRepository());
 #endif
 
-#if RELEASE
+#if RELEASE 
             services.AddSingleton(
                 typeof(ITimeseriesRepository),
                 sp => new InfluxDBRepository(
@@ -108,12 +108,23 @@ namespace DataHub
                 typeof(IEntityFrameworkRepository<TimeseriesMetadata>),
                 sp => new EntityFrameworkRepository<TimeseriesMetadata>(sp.GetService<EntitiesDBContext>()));
 
-#if RELEASE
+#if !NO_SECURITY
             services.AddAuthentication(sharedOptions =>
             {
                 sharedOptions.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
             })
             .AddAzureAdBearer(options => configuration.Bind("AzureAd", options));
+
+            // Prerequisites: 
+            // Azure application registration manifest must contain "groupMembershipClaims": "SecurityGroup"
+            // Reader and writer groups must be present in Azure AD and correct group Objects IDs must be in configuration
+            services.AddAuthorization(options =>
+            {
+                options.AddPolicy("Readers", policy => policy.RequireClaim("groups",
+                    configuration.GetValue<string>("AzureSecurityGroup:DataHubReadersObjectID")));
+                options.AddPolicy("Writers", policy => policy.RequireClaim("groups",
+                    configuration.GetValue<string>("AzureSecurityGroup:DataHubWritersObjectID")));
+            });
 #endif
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
 
@@ -133,7 +144,7 @@ namespace DataHub
                 c.IncludeXmlComments(filePath);
                 c.OperationFilter<FileOperationFilter>();
                 c.CustomSchemaIds(type => type.FriendlyId().Replace("[", "Of").Replace("]", ""));
-#if RELEASE
+#if !NO_SECURITY
                 c.AddSecurityDefinition("oauth2", new OAuth2Scheme
                 {
                     Type = "oauth2",
@@ -190,7 +201,7 @@ namespace DataHub
                 routes.MapHub<TimeseriesHub>(TIMESERIES_HUB_PATH);
             });
 
-#if RELEASE
+#if !NO_SECURITY
             app.UseAuthentication();
 #endif
 
@@ -205,7 +216,7 @@ namespace DataHub
             app.UseSwaggerUI(c =>
             {
                 c.SwaggerEndpoint("/swagger/v1/swagger.json", "Data Hub");
-#if RELEASE
+#if !NO_SECURITY
                 c.OAuthClientId(configuration["AzureAd:ClientId"]);
                 c.OAuthAdditionalQueryStringParams(new Dictionary<string, string>()
                     {

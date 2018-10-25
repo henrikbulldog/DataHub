@@ -17,8 +17,8 @@ using RepositoryFramework.Interfaces;
 namespace DataHub.Controllers
 {
     [Route("events")]
-#if RELEASE
-    [Microsoft.AspNetCore.Authorization.Authorize]
+#if !NO_SECURITY
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = "Readers")]
 #endif
     public class EventsController : Controller
     {
@@ -109,6 +109,9 @@ namespace DataHub.Controllers
         /// </summary>
         /// <param name="eventRequest">Event request</param>
         /// <returns></returns>
+#if !NO_SECURITY
+        [Microsoft.AspNetCore.Authorization.Authorize(Policy = "Writers")]
+#endif
         [HttpPost]
         [ProducesResponseType(typeof(Entities.EventInfo), 201)]
         [ProducesResponseType(400)]

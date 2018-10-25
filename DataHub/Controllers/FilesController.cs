@@ -15,8 +15,8 @@ using RepositoryFramework.Interfaces;
 namespace DataHub.Controllers
 {
     [Route("files")]
-#if RELEASE
-    [Microsoft.AspNetCore.Authorization.Authorize]
+#if !NO_SECURITY
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = "Readers")]
 #endif
     public class FilesController : Controller
     {
@@ -187,6 +187,9 @@ namespace DataHub.Controllers
         /// <param name="format">File format</param>
         /// <param name="fileData">File payload</param>
         /// <returns></returns>
+#if !NO_SECURITY
+        [Microsoft.AspNetCore.Authorization.Authorize(Policy = "Writers")]
+#endif
         [HttpPost]
         [ProducesResponseType(typeof(Entities.FileInfo), 201)]
         public virtual async Task<IActionResult> PostFileAsync(

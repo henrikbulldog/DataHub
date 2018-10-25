@@ -21,9 +21,8 @@ namespace DataHub.Controllers
 {
 
     [Route("timeseries")]
-
-#if RELEASE
-    [Microsoft.AspNetCore.Authorization.Authorize]
+#if !NO_SECURITY
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = "Readers")]
 #endif
     public class TimeseriesController : Controller
     {
@@ -46,6 +45,9 @@ namespace DataHub.Controllers
         /// </summary>
         /// <param name="items">List of timeseries metadata</param>
         /// <returns></returns>
+#if !NO_SECURITY
+        [Microsoft.AspNetCore.Authorization.Authorize(Policy = "Writers")]
+#endif
         [HttpPost("metadata")]
         [ProducesResponseType(typeof(List<TimeseriesMetadata>), 201)]
         [ProducesResponseType(400)]
@@ -160,6 +162,9 @@ namespace DataHub.Controllers
         /// <param name="source">Originating data source</param>
         /// <param name="id">Timeseries metadata id</param>
         /// <returns></returns>
+#if !NO_SECURITY
+        [Microsoft.AspNetCore.Authorization.Authorize(Policy = "Writers")]
+#endif
         [HttpDelete("metadata/{source}/{id}")]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
@@ -191,6 +196,9 @@ namespace DataHub.Controllers
         /// </summary>
         /// <param name="data"></param>
         /// <returns></returns>
+#if !NO_SECURITY
+        [Microsoft.AspNetCore.Authorization.Authorize(Policy = "Writers")]
+#endif
         [HttpPost()]
         [ProducesResponseType(201)]
         [ProducesResponseType(400)]
