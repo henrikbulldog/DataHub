@@ -407,21 +407,26 @@ namespace DataHub.Controllers
         }
 
         /// <summary>
-        /// Upload a file
+        /// Insert or update entities by uploading a comma-separated file. Must contain column names in first line.
         /// </summary>
         /// <param name="name">Data entity or type of document</param>
         /// <param name="fileData">File payload</param>
-        /// <param name="separator">Column separator character. Default is tab</param>
+        /// <param name="separator">Column separator character</param>
         /// <returns></returns>
         [HttpPost("{name}/data/csv")]
         [ProducesResponseType(typeof(Entities.FileInfo), 201)]
         public virtual async Task<IActionResult> PostCsvFileAsync(
             [FromRoute]string name,
             [FromForm(Name = FileOperationFilter.FILE_PAYLOAD_PARM)] IFormFile fileData,
-            [FromForm]char separator = '\t')
+            [FromForm]string separator = ",")
         {
             try
             {
+                if (separator == "\\t")
+                {
+                    separator = "\t";
+                }
+
                 var entity = entitiesRepository.GetById(name);
                 if (entity == null)
                 {
@@ -444,7 +449,7 @@ namespace DataHub.Controllers
             }
         }
 
-        public async Task OnFileUploadAsync<T>(Stream stream, char separator)
+        public async Task OnFileUploadAsync<T>(Stream stream, string separator)
             where T : class, IEntity, new()
         {
             StreamReader sr = new StreamReader(stream);
@@ -486,13 +491,18 @@ namespace DataHub.Controllers
                 entities.Add(entity);
             }
 
-            var sql = $"ALTER TABLE {typeof(T).Name} NOCHECK CONSTRAINT ALL; SELECT TOP 1 * FROM {typeof(T).Name}";
-            dbContext.Set<T>().FromSql(sql).ToList();
 
-            await dbContext.BulkInsertOrUpdateAsync<T>(entities);
+            using (var t = await dbContext.Database.BeginTransactionAsync())
+            {
+                var sql = $"ALTER TABLE {typeof(T).Name} NOCHECK CONSTRAINT ALL; SELECT TOP 1 * FROM {typeof(T).Name}";
+                dbContext.Set<T>().FromSql(sql).ToList();
 
-            sql = $"ALTER TABLE {typeof(T).Name} WITH CHECK CHECK CONSTRAINT ALL; SELECT TOP 1 * FROM {typeof(T).Name}";
-            dbContext.Set<T>().FromSql(sql).ToList();
+                await dbContext.BulkInsertOrUpdateAsync<T>(entities);
+
+                sql = $"ALTER TABLE {typeof(T).Name} WITH CHECK CHECK CONSTRAINT ALL; SELECT TOP 1 * FROM {typeof(T).Name}";
+                dbContext.Set<T>().FromSql(sql).ToList();
+                t.Commit();
+            }
         }
     }
 }

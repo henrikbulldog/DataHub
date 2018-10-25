@@ -56,7 +56,6 @@ namespace DataHub
                         Environment.GetEnvironmentVariable("Azure.Sql.Connection"),
 #else
                     @"Server=localhost;Database=NanoDataHub;Trusted_Connection=True;ConnectRetryCount=0",
-                    //@"Server=(localdb)\mssqllocaldb;Database=EFProviders.InMemory;Trusted_Connection=True;ConnectRetryCount=0",
 #endif
                     sp.GetService<IEntitiesRepository>(),
                     logger);
